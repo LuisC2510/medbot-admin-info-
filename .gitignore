@@ -1,0 +1,23 @@
+# Dependencias de Node
+node_modules/
+package-lock.json
+
+# Archivos de base de datos SQLite autogenerados
+database/*.db
+database/*.db-wal
+database/*.db-shm
+*.db
+*.db-wal
+*.db-shm
+
+# Variables de entorno y secretos
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
