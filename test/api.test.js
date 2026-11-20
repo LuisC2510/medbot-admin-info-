@@ -54,52 +54,33 @@ async function runTests() {
   });
 
   try {
-    // 1. Test Login para cada uno de los roles (Con 2FA de Microsoft para Médicos, Enfermeros y Admin)
-    console.log('  ▶ Test 1: Autenticación de roles (con 2FA Microsoft para roles clínicos y admin)');
+    // 1. Test Login para cada uno de los roles
+    console.log('  ▶ Test 1: Autenticación de roles (Admin, Admisión, Enfermero, Médico)');
     
-    // Admin (requiere 2FA)
-    const stepAdmin1 = await request('POST', '/api/auth/login', { documento: '1000', password: 'Admin123!' });
-    assert.strictEqual(stepAdmin1.status, 200);
-    assert.strictEqual(stepAdmin1.data.require2FA, true, 'Admin debe solicitar 2FA');
-    const resAdmin = await request('POST', '/api/auth/verify-2fa', {
-      tempToken: stepAdmin1.data.tempToken,
-      codigo: stepAdmin1.data.codigoDemo
-    });
-    assert.strictEqual(resAdmin.status, 200, 'Verificación 2FA Admin debe ser 200');
+    // Admin
+    const resAdmin = await request('POST', '/api/auth/login', { documento: '1000', password: 'Admin123!' });
+    assert.strictEqual(resAdmin.status, 200, 'Admin login debe ser 200');
     assert.strictEqual(resAdmin.data.user.rol, 'ADMIN');
     const adminToken = resAdmin.data.token;
 
-    // Administrativo (ingreso directo sin 2FA)
+    // Administrativo
     const resAdm = await request('POST', '/api/auth/login', { documento: '1001', password: 'Admin123!' });
     assert.strictEqual(resAdm.status, 200);
     assert.strictEqual(resAdm.data.user.rol, 'ADMINISTRATIVO');
-    assert.strictEqual(resAdm.data.require2FA, undefined, 'Administrativo no requiere 2FA');
     const admToken = resAdm.data.token;
 
-    // Enfermero (requiere 2FA)
-    const stepEnf1 = await request('POST', '/api/auth/login', { documento: '1002', password: 'Enfermero123!' });
-    assert.strictEqual(stepEnf1.status, 200);
-    assert.strictEqual(stepEnf1.data.require2FA, true, 'Enfermero debe solicitar 2FA');
-    const resEnf = await request('POST', '/api/auth/verify-2fa', {
-      tempToken: stepEnf1.data.tempToken,
-      codigo: stepEnf1.data.codigoDemo
-    });
+    // Enfermero
+    const resEnf = await request('POST', '/api/auth/login', { documento: '1002', password: 'Enfermero123!' });
     assert.strictEqual(resEnf.status, 200);
     assert.strictEqual(resEnf.data.user.rol, 'ENFERMERO');
     const enfToken = resEnf.data.token;
 
-    // Médico (requiere 2FA)
-    const stepMed1 = await request('POST', '/api/auth/login', { documento: '1003', password: 'Medico123!' });
-    assert.strictEqual(stepMed1.status, 200);
-    assert.strictEqual(stepMed1.data.require2FA, true, 'Médico debe solicitar 2FA');
-    const resMed = await request('POST', '/api/auth/verify-2fa', {
-      tempToken: stepMed1.data.tempToken,
-      codigo: stepMed1.data.codigoDemo
-    });
+    // Médico
+    const resMed = await request('POST', '/api/auth/login', { documento: '1003', password: 'Medico123!' });
     assert.strictEqual(resMed.status, 200);
     assert.strictEqual(resMed.data.user.rol, 'MEDICO');
     const medToken = resMed.data.token;
-    console.log('    ✅ Autenticación y Verificación de Dos Pasos exitosa para los roles.');
+    console.log('    ✅ Autenticación exitosa directa para los 4 roles.');
 
     // 2. Test Tablero de urgencias en tiempo real
     console.log('  ▶ Test 2: Consulta del Tablero de Urgencias en Tiempo Real');
