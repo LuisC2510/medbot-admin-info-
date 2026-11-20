@@ -41,11 +41,15 @@ const API = {
   },
 
   // 5. CERRAR SESIÓN
-  // Limpia el token y recarga la página para mostrar el login
+  // Limpia el token y muestra de nuevo el login inmediatamente
   logout() {
     this.setToken(null);
     this.setUser(null);
-    window.location.reload();
+    if (window.App && typeof window.App.checkAuth === 'function') {
+      window.App.checkAuth();
+    } else {
+      window.location.reload();
+    }
   },
 
   // 6. FUNCIÓN GENERAL PARA HACER PETICIONES AL SERVIDOR

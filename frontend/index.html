@@ -12,114 +12,126 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- Tailwind CSS para diseño limpio -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Estilos propios sencillos -->
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=2">
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased font-sans min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 antialiased font-sans h-screen overflow-hidden flex flex-col">
 
-  <!-- BANNER SENCILLO: MODO EMERGENCIA / DESASTRE -->
-  <div id="global-emergency-banner" class="hidden emergency-banner-active px-4 py-2 text-center text-xs sm:text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2">
-    <span>⚠️ MODO EMERGENCIA / CONTINGENCIA ACTIVO: Tiempos de espera normativos suspendidos temporalmente</span>
+  <!-- BANNER: MODO EMERGENCIA / DESASTRE -->
+  <div id="global-emergency-banner" class="hidden emergency-banner-active px-4 py-2 text-center text-xs sm:text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2 z-50">
+    <span>⚠️ MODO EMERGENCIA / CONTINGENCIA ACTIVO: Tiempos normativos de espera suspendidos temporalmente (Res. 5596/2015)</span>
   </div>
 
   <!-- PANTALLA DE INICIO DE SESIÓN Y 2FA MICROSOFT -->
-  <div id="auth-container"></div>
+  <div id="auth-container" class="h-screen overflow-y-auto"></div>
 
   <!-- APLICACIÓN PRINCIPAL (CUANDO YA INICIÓ SESIÓN) -->
-  <div id="app-container" class="hidden flex-1 flex flex-col md:flex-row min-h-screen">
+  <div id="app-container" class="hidden flex-1 flex flex-col md:flex-row h-screen overflow-hidden">
     
-    <!-- BARRA LATERAL SENCILLA (SIDEBAR) -->
-    <aside class="w-full md:w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col justify-between">
-      <div>
-        <!-- Logotipo Institucional Sencillo -->
-        <div class="p-4 border-b border-slate-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-lg">
-            🏥
-          </div>
-          <div>
-            <h2 class="text-sm font-bold text-slate-800 leading-tight">Triage Urgencias</h2>
-            <p class="text-xs text-blue-600 font-semibold">Res. 5596 de 2015</p>
-            <p class="text-[11px] text-slate-400">Univ. Santiago de Cali</p>
-          </div>
+    <!-- BARRA LATERAL FIJA (SIDEBAR NUNCA SE DESPLAZA NI SE PIERDE) -->
+    <aside class="w-full md:w-60 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col h-full shadow-xs">
+      <!-- Logotipo Institucional Sencillo -->
+      <div class="p-4 border-b border-slate-200 flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base shadow-xs">
+          🏥
         </div>
-
-        <!-- Menú de Navegación por Rol -->
-        <div class="p-3">
-          <p class="px-2 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider">Menú</p>
-          <nav id="sidebar-navigation" class="space-y-1 mt-1">
-            <!-- Se llena con app.js según el rol -->
-          </nav>
+        <div>
+          <h2 class="text-sm font-bold text-slate-800 leading-tight">Triage Urgencias</h2>
+          <p class="text-[11px] text-blue-600 font-semibold">Res. 5596 de 2015</p>
+          <p class="text-[10px] text-slate-400">Univ. Santiago de Cali</p>
         </div>
       </div>
 
-      <!-- Pie de la barra lateral: Datos del Usuario y Botón Salir -->
-      <div class="p-4 border-t border-slate-200 bg-slate-50">
-        <div class="mb-3">
-          <p id="header-user-name" class="text-xs font-bold text-slate-800 truncate">Nombre Usuario</p>
-          <span id="header-user-role" class="text-[11px] font-semibold text-blue-700">ROL</span>
-        </div>
+      <!-- Menú de Navegación por Rol -->
+      <div class="p-3 flex-1 overflow-y-auto">
+        <p class="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Menú Principal</p>
+        <nav id="sidebar-navigation" class="space-y-1 mt-1">
+          <!-- Se llena con app.js según el rol -->
+        </nav>
+      </div>
 
-        <button id="btn-logout" class="w-full py-1.5 px-3 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 flex items-center justify-center gap-1.5 transition-colors">
-          <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
-          <span>Cerrar Sesión</span>
+      <!-- Pie del Sidebar: Botón rápido de cambiar rol -->
+      <div class="p-3 border-t border-slate-200 bg-slate-50">
+        <button onclick="App.abrirSelectorRoles()" class="w-full py-2 px-3 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 flex items-center justify-center gap-1.5 transition-colors">
+          <span>🔄 Cambiar Rol / Probar 2FA</span>
         </button>
       </div>
     </aside>
 
-    <!-- CONTENIDO PRINCIPAL -->
-    <main class="flex-1 flex flex-col min-h-screen bg-slate-50">
+    <!-- ÁREA PRINCIPAL CON HEADER FIJO ARRIBA -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden">
       
-      <!-- Barra Superior (Header) -->
-      <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
+      <!-- HEADER FIJO ARRIBA (TODO ESTÁ VISIBLE AQUÍ SIN BAJAR) -->
+      <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between flex-shrink-0 z-20 shadow-xs">
+        
+        <!-- Izquierda: Estado del Servicio -->
         <div class="flex items-center gap-2">
-          <span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded">
-            Servicio de Urgencias
+          <span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+            Hospital Universitario
           </span>
-          <span class="text-xs text-slate-400">• Hospital Universitario</span>
+          <span id="socket-status-badge"></span>
         </div>
 
-        <div class="flex items-center gap-3">
-          <span id="socket-status-badge"></span>
-          <span id="topbar-live-clock" class="digital-clock text-xs font-bold text-slate-600"></span>
+        <!-- Centro: Reloj en vivo -->
+        <div class="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+          <span>⏰</span>
+          <span id="topbar-live-clock" class="digital-clock"></span>
+        </div>
+
+        <!-- Derecha: Perfil del Usuario, Cambiar Rol y Botón Salir (SIEMPRE ARRIBA Y VISIBLE) -->
+        <div class="flex items-center gap-2.5">
+          <div class="text-right">
+            <span id="header-user-name" class="text-xs font-bold text-slate-800 block truncate max-w-[160px]">Usuario</span>
+            <span id="header-user-role" class="text-[10px] font-bold uppercase block text-blue-600">ROL</span>
+          </div>
+
+          <button onclick="App.abrirSelectorRoles()" title="Cambiar de Rol" class="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded border border-slate-300 flex items-center gap-1 transition-colors">
+            <span>🔄 Roles</span>
+          </button>
+
+          <button id="btn-logout" title="Cerrar Sesión" class="px-2.5 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 flex items-center gap-1 transition-colors">
+            <span>🚪 Salir</span>
+          </button>
         </div>
       </header>
 
-      <!-- Vista que se muestra según la opción elegida -->
-      <div id="main-view-container" class="p-4 md:p-6 flex-1 max-w-7xl w-full mx-auto">
+      <!-- VISTA DINÁMICA CON SCROLL INDEPENDIENTE (SÓLO EL CONTENIDO SE DESPLAZA) -->
+      <main id="main-view-container" class="p-4 md:p-6 flex-1 overflow-y-auto max-w-7xl w-full mx-auto">
         <!-- Renderizado dinámico -->
-      </div>
-    </main>
+      </main>
+
+    </div>
 
   </div>
 
-  <!-- VENTANA MODAL SENCILLA PARA FORMULARIOS Y ACCIONES -->
+  <!-- VENTANA MODAL PARA FORMULARIOS, 2FA Y RECLASIFICACIONES -->
   <div id="modal-container" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto">
-    <div id="modal-content-box" class="bg-white rounded-xl shadow-lg border border-slate-200 w-full max-w-2xl overflow-hidden my-6 max-h-[90vh] overflow-y-auto">
-      <!-- Se inyecta con App.abrirModal -->
+    <div id="modal-content-box" class="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden my-6 max-h-[90vh] overflow-y-auto">
+      <!-- Se inyecta dinámicamente -->
     </div>
   </div>
 
-  <!-- CONTENEDOR DE MENSAJES TOAST -->
+  <!-- TOAST NOTIFICACIONES -->
   <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full"></div>
 
-  <!-- SCRIPTS -->
+  <!-- SCRIPTS CON CONTROL DE CACHÉ ?v=3 -->
   <script src="/socket.io/socket.io.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/timer.js"></script>
-  <script src="js/socket.js"></script>
-  <script src="js/views/tablero.view.js"></script>
-  <script src="js/views/admisiones.view.js"></script>
-  <script src="js/views/pacientes.view.js"></script>
-  <script src="js/views/enfermeria.view.js"></script>
-  <script src="js/views/medico.view.js"></script>
-  <script src="js/views/admin.view.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/api.js?v=3"></script>
+  <script src="js/timer.js?v=3"></script>
+  <script src="js/socket.js?v=3"></script>
+  <script src="js/views/tablero.view.js?v=3"></script>
+  <script src="js/views/admisiones.view.js?v=3"></script>
+  <script src="js/views/pacientes.view.js?v=3"></script>
+  <script src="js/views/enfermeria.view.js?v=3"></script>
+  <script src="js/views/medico.view.js?v=3"></script>
+  <script src="js/views/admin.view.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
 
   <!-- Reloj de la barra superior -->
   <script>

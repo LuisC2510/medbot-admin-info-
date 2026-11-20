@@ -53,60 +53,65 @@ const App = {
     const container = document.getElementById('auth-container');
     if (!container) return;
 
+    // Asegurar que el contenedor principal esté oculto
+    const appContainer = document.getElementById('app-container');
+    if (appContainer) appContainer.classList.add('hidden');
+    container.classList.remove('hidden');
+
     container.innerHTML = `
       <div class="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div class="w-full max-w-md bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+        <div class="w-full max-w-md bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
           
           <!-- Encabezado Sencillo -->
-          <div class="bg-blue-600 p-5 text-white text-center">
-            <span class="text-3xl block mb-1">🏥</span>
-            <h2 class="text-lg font-bold">Sistema de Triage de Urgencias</h2>
+          <div class="bg-blue-600 p-4 text-white text-center">
+            <span class="text-2xl block mb-1">🏥</span>
+            <h2 class="text-base font-bold">Sistema de Triage de Urgencias</h2>
             <p class="text-xs text-blue-100">Universidad Santiago de Cali • Res. 5596/2015</p>
           </div>
 
-          <!-- Formulario de Acceso -->
-          <div class="p-6">
-            <form id="form-login" class="space-y-4">
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Documento / Usuario</label>
-                <input type="text" id="login-documento" required placeholder="Número de documento..." class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Contraseña</label>
-                <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
-              </div>
-
-              <button type="submit" class="w-full py-2.5 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors">
-                Iniciar Sesión
-              </button>
-            </form>
-
-            <!-- Acceso Rápido para Pruebas / Demostración -->
-            <div class="mt-5 pt-4 border-t border-slate-200">
-              <p class="text-xs font-bold text-slate-500 text-center mb-2">
-                Accesos de Prueba por Rol:
-              </p>
+          <div class="p-5">
+            <!-- ACCESOS RÁPIDOS ARRIBA PARA NO TENER QUE BAJAR -->
+            <div class="mb-4 p-3 bg-blue-50/70 border border-blue-200 rounded-lg">
+              <span class="text-xs font-bold text-blue-900 block mb-2 text-center">
+                👇 Clic para probar cualquier Rol:
+              </span>
               <div class="grid grid-cols-2 gap-2 text-xs">
-                <button type="button" onclick="App.loginRapido('1001', 'Admin123!')" class="p-2 rounded border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 text-left transition-colors">
-                  <strong>1. Admisiones</strong>
-                  <span class="text-[10px] text-blue-600 block">Doc: 1001 (Directo)</span>
+                <button type="button" onclick="App.loginRapido('1001', 'Admin123!')" class="p-2 rounded border border-blue-300 bg-white hover:bg-blue-100 text-blue-900 text-left shadow-xs transition-colors">
+                  <strong class="block">🏢 1. Admisiones</strong>
+                  <span class="text-[10px] text-slate-500 block">Acceso directo</span>
                 </button>
-                <button type="button" onclick="App.loginRapido('1002', 'Enfermero123!')" class="p-2 rounded border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-left transition-colors">
-                  <strong>2. Enfermero Jefe</strong>
-                  <span class="text-[10px] text-amber-600 block">Doc: 1002 (Pide 2FA)</span>
+                <button type="button" onclick="App.loginRapido('1002', 'Enfermero123!')" class="p-2 rounded border border-amber-300 bg-white hover:bg-amber-100 text-amber-900 text-left shadow-xs transition-colors">
+                  <strong class="block">🩺 2. Enfermero Jefe</strong>
+                  <span class="text-[10px] text-amber-700 font-bold block">Pide 2FA Microsoft</span>
                 </button>
-                <button type="button" onclick="App.loginRapido('1003', 'Medico123!')" class="p-2 rounded border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-left transition-colors">
-                  <strong>3. Médico</strong>
-                  <span class="text-[10px] text-emerald-600 block">Doc: 1003 (Pide 2FA)</span>
+                <button type="button" onclick="App.loginRapido('1003', 'Medico123!')" class="p-2 rounded border border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-900 text-left shadow-xs transition-colors">
+                  <strong class="block">👨‍⚕️ 3. Médico</strong>
+                  <span class="text-[10px] text-emerald-700 font-bold block">Pide 2FA Microsoft</span>
                 </button>
-                <button type="button" onclick="App.loginRapido('1000', 'Admin123!')" class="p-2 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 text-left transition-colors">
-                  <strong>4. Administrador</strong>
-                  <span class="text-[10px] text-purple-600 block">Doc: 1000 (Pide 2FA)</span>
+                <button type="button" onclick="App.loginRapido('1000', 'Admin123!')" class="p-2 rounded border border-purple-300 bg-white hover:bg-purple-100 text-purple-900 text-left shadow-xs transition-colors">
+                  <strong class="block">⚙️ 4. Administrador</strong>
+                  <span class="text-[10px] text-purple-700 font-bold block">Pide 2FA Microsoft</span>
                 </button>
               </div>
             </div>
 
+            <!-- O Ingreso Manual con Documento y Contraseña -->
+            <form id="form-login" class="space-y-3 pt-2 border-t border-slate-200">
+              <p class="text-[11px] text-slate-500 text-center font-medium">O escribe tus credenciales manuales:</p>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Documento</label>
+                <input type="text" id="login-documento" required placeholder="Ej: 1003 (Médico) o 1002" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Contraseña</label>
+                <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
+              </div>
+
+              <button type="submit" class="w-full py-2 px-4 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors shadow-xs">
+                Ingresar
+              </button>
+            </form>
           </div>
         </div>
       </div>
@@ -121,61 +126,72 @@ const App = {
     };
   },
 
-  // PANTALLA: VERIFICACIÓN EN DOS PASOS DE MICROSOFT (2FA)
+  // PANTALLA INTERACTIVA: VERIFICACIÓN EN DOS PASOS DE MICROSOFT (2FA)
   renderMicrosoft2FAForm(datos2FA) {
     const container = document.getElementById('auth-container');
     if (!container) return;
+
+    const appContainer = document.getElementById('app-container');
+    if (appContainer) appContainer.classList.add('hidden');
+    container.classList.remove('hidden');
 
     container.innerHTML = `
       <div class="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div class="w-full max-w-md bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
           
-          <!-- Encabezado con Logotipo de Microsoft -->
+          <!-- Encabezado con Logotipo Oficial de Microsoft -->
           <div class="p-5 border-b border-slate-100 text-center bg-white">
-            <!-- Logo oficial de 4 colores de Microsoft -->
-            <div class="grid grid-cols-2 gap-1 w-6 h-6 mx-auto mb-3">
+            <div class="grid grid-cols-2 gap-1 w-7 h-7 mx-auto mb-2">
               <span class="bg-[#f25022] rounded-xs"></span>
               <span class="bg-[#7fba00] rounded-xs"></span>
               <span class="bg-[#00a4ef] rounded-xs"></span>
               <span class="bg-[#ffb900] rounded-xs"></span>
             </div>
-            <h2 class="text-base font-bold text-slate-800">Verificación en dos pasos</h2>
-            <p class="text-xs text-slate-500 mt-0.5">Seguridad Microsoft Authenticator / Cuenta Institucional</p>
+            <h2 class="text-base font-bold text-slate-800">Microsoft Authenticator</h2>
+            <p class="text-xs text-slate-500">Verificación de seguridad en dos pasos (2FA)</p>
           </div>
 
           <div class="p-6">
-            <div class="mb-4 text-center">
-              <p class="text-sm font-semibold text-slate-800">${datos2FA.user.nombre}</p>
+            <!-- Datos del Usuario Identificado -->
+            <div class="mb-4 p-3 bg-slate-50 border border-slate-200 rounded text-center">
+              <p class="text-xs text-slate-500">Usuario identificado:</p>
+              <p class="text-sm font-bold text-slate-800">${datos2FA.user.nombre}</p>
               <span class="inline-block mt-1 px-2.5 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
                 Rol: ${datos2FA.user.rol}
               </span>
-              <p class="text-xs text-slate-500 mt-2">
-                Por seguridad clínica institucional, este rol requiere ingresar el código de verificación de 6 dígitos.
-              </p>
             </div>
 
-            <!-- Formulario de Código 2FA -->
-            <form id="form-2fa" class="space-y-4">
+            <p class="text-xs text-slate-600 text-center mb-4 leading-relaxed">
+              🔐 <strong>Protección de Datos Médicos:</strong> Al ser personal asistencial o administrativo de urgencias, debes comprobar tu identidad.
+            </p>
+
+            <!-- OPCIÓN 1: APROBACIÓN DIRECTA EN 1 CLIC (SUPER RÁPIDA) -->
+            <div class="mb-4 p-3.5 bg-blue-50 border border-blue-200 rounded-lg text-center">
+              <span class="text-xs font-bold text-blue-900 block mb-1">¿Tienes tu app Microsoft Authenticator?</span>
+              <button type="button" id="btn-aprobar-directo" class="w-full mt-2 py-2 px-3 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-xs transition-all flex items-center justify-center gap-1.5">
+                <span>📲 Aprobar con 1 Clic (Código: ${datos2FA.codigoDemo})</span>
+              </button>
+            </div>
+
+            <div class="flex items-center my-3">
+              <div class="flex-1 border-t border-slate-200"></div>
+              <span class="px-2 text-[10px] text-slate-400 uppercase font-semibold">O escribe el código</span>
+              <div class="flex-1 border-t border-slate-200"></div>
+            </div>
+
+            <!-- OPCIÓN 2: FORMULARIO MANUAL DEL CÓDIGO -->
+            <form id="form-2fa" class="space-y-3">
               <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-center">Código de seguridad (6 dígitos)</label>
-                <input type="text" id="input-codigo-2fa" maxlength="6" required autofocus placeholder="000000" class="digital-clock w-full text-center text-2xl font-bold tracking-widest px-3 py-2 border-2 border-blue-400 rounded focus:outline-none focus:border-blue-600">
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-center">Código de 6 dígitos</label>
+                <input type="text" id="input-codigo-2fa" maxlength="6" autofocus placeholder="${datos2FA.codigoDemo}" class="digital-clock w-full text-center text-2xl font-bold tracking-widest px-3 py-1.5 border border-slate-300 rounded focus:outline-none focus:border-blue-500">
               </div>
 
-              <!-- Ayuda para demostración en clase -->
-              <div class="p-3 bg-blue-50 border border-blue-200 rounded text-center">
-                <span class="text-xs text-slate-600 block mb-1">Código generado para esta prueba:</span>
-                <span class="digital-clock font-bold text-blue-700 text-base tracking-widest">${datos2FA.codigoDemo}</span>
-                <button type="button" onclick="document.getElementById('input-codigo-2fa').value = '${datos2FA.codigoDemo}'" class="mt-1.5 block mx-auto text-[11px] text-blue-600 hover:underline font-semibold">
-                  (Clic aquí para autorrellenar código)
+              <div class="space-y-2 pt-1">
+                <button type="submit" class="w-full py-2 px-4 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded border border-slate-300 transition-colors">
+                  Verificar Código Manual
                 </button>
-              </div>
-
-              <div class="space-y-2 pt-2">
-                <button type="submit" class="w-full py-2.5 px-4 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors">
-                  Verificar e Ingresar
-                </button>
-                <button type="button" onclick="App.renderLoginForm()" class="w-full py-2 px-4 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors">
-                  Cancelar y volver
+                <button type="button" onclick="App.cerrarSesion()" class="w-full py-1 px-4 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors">
+                  &larr; Cancelar y volver
                 </button>
               </div>
             </form>
@@ -184,25 +200,46 @@ const App = {
       </div>
     `;
 
+    // Handler de aprobación directa en 1 clic
+    const btnAprobar = document.getElementById('btn-aprobar-directo');
+    if (btnAprobar) {
+      btnAprobar.onclick = () => {
+        btnAprobar.innerHTML = '<span>⏳ Verificando con Microsoft...</span>';
+        btnAprobar.disabled = true;
+        this.verificarCodigo2FA(datos2FA.tempToken, datos2FA.codigoDemo);
+      };
+    }
+
+    // Handler de formulario manual
     const form2FA = document.getElementById('form-2fa');
-    form2FA.onsubmit = async (e) => {
-      e.preventDefault();
-      const codigo = document.getElementById('input-codigo-2fa').value.trim();
+    if (form2FA) {
+      form2FA.onsubmit = (e) => {
+        e.preventDefault();
+        const cod = document.getElementById('input-codigo-2fa').value.trim() || datos2FA.codigoDemo;
+        this.verificarCodigo2FA(datos2FA.tempToken, cod);
+      };
+    }
+  },
 
-      try {
-        const respuesta = await API.post('/auth/verify-2fa', {
-          tempToken: datos2FA.tempToken,
-          codigo: codigo
-        });
+  async verificarCodigo2FA(tempToken, codigo) {
+    try {
+      const respuesta = await API.post('/auth/verify-2fa', {
+        tempToken: tempToken,
+        codigo: codigo
+      });
 
-        API.setToken(respuesta.token);
-        API.setUser(respuesta.user);
-        API.showToast(`Identidad verificada. Bienvenido(a), ${respuesta.user.nombre}`, 'success');
-        this.checkAuth();
-      } catch (err) {
-        API.showToast(err.message, 'error');
+      API.setToken(respuesta.token);
+      API.setUser(respuesta.user);
+      API.showToast(`✅ Verificación Microsoft aprobada. Bienvenido(a), ${respuesta.user.nombre}`, 'success');
+      this.checkAuth();
+    } catch (err) {
+      API.showToast('❌ ' + err.message, 'error');
+      const btnAprobar = document.getElementById('btn-aprobar-directo');
+      if (btnAprobar) {
+        btnAprobar.innerHTML = '<span>📲 Reintentar Aprobación</span>';
+        btnAprobar.disabled = false;
       }
-    };
+    }
   },
 
   async login(documento, password) {
@@ -226,7 +263,69 @@ const App = {
   },
 
   loginRapido(doc, pass) {
+    // Si había una sesión previa, la limpiamos primero para forzar la prueba limpia
+    API.setToken(null);
+    API.setUser(null);
     this.login(doc, pass);
+  },
+
+  cerrarSesion() {
+    API.logout();
+  },
+
+  // MODAL INTERACTIVO PARA CAMBIAR DE ROL DESDE EL HEADER EN CUALQUIER MOMENTO
+  abrirSelectorRoles() {
+    this.abrirModal(`
+      <div class="p-5">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Cambiar Rol / Probar Seguridad</h3>
+            <p class="text-xs text-slate-500">Selecciona el rol con el que deseas interactuar:</p>
+          </div>
+          <button onclick="App.cerrarModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+          <button onclick="App.cerrarModal(); App.loginRapido('1001', 'Admin123!')" class="p-3 text-left border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">🏢</span>
+              <strong class="text-xs text-slate-800">1. Administrativo</strong>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">Admisiones y pacientes. (Ingreso directo)</p>
+          </button>
+
+          <button onclick="App.cerrarModal(); App.loginRapido('1002', 'Enfermero123!')" class="p-3 text-left border rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-colors">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">🩺</span>
+              <strong class="text-xs text-slate-800">2. Enfermero Jefe</strong>
+            </div>
+            <p class="text-[11px] text-amber-700 font-semibold mt-1">Pide 2FA con Microsoft Authenticator</p>
+          </button>
+
+          <button onclick="App.cerrarModal(); App.loginRapido('1003', 'Medico123!')" class="p-3 text-left border rounded-lg hover:border-emerald-500 hover:bg-emerald-50 transition-colors">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">👨‍⚕️</span>
+              <strong class="text-xs text-slate-800">3. Médico Urgencias</strong>
+            </div>
+            <p class="text-[11px] text-emerald-700 font-semibold mt-1">Pide 2FA con Microsoft Authenticator</p>
+          </button>
+
+          <button onclick="App.cerrarModal(); App.loginRapido('1000', 'Admin123!')" class="p-3 text-left border rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">⚙️</span>
+              <strong class="text-xs text-slate-800">4. Administrador</strong>
+            </div>
+            <p class="text-[11px] text-purple-700 font-semibold mt-1">Pide 2FA con Microsoft Authenticator</p>
+          </button>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+          <button onclick="App.cerrarModal()" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    `);
   },
 
   setupAuthenticatedLayout(user) {
