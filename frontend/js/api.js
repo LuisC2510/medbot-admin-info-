@@ -1,9 +1,17 @@
-// API CLIENT WRAPPER CON SOPORTE JWT Y NOTIFICACIONES TOAST
+// ============================================================
+// ARCHIVO: api.js
+// OBJETIVO: Conectar el frontend (pantalla) con el backend (servidor)
+// Hecho de forma sencilla y directa usando fetch de JavaScript
+// ============================================================
+
 const API = {
+  // 1. OBTENER EL TOKEN GUARDADO
+  // Busca en la memoria del navegador si el usuario ya inició sesión
   getToken() {
     return localStorage.getItem('medbot_triage_token');
   },
 
+  // 2. GUARDAR O BORRAR EL TOKEN
   setToken(token) {
     if (token) {
       localStorage.setItem('medbot_triage_token', token);
@@ -12,132 +20,136 @@ const API = {
     }
   },
 
+  // 3. OBTENER LOS DATOS DEL USUARIO LOGUEADO
   getUser() {
     try {
-      const data = localStorage.getItem('medbot_triage_user');
-      return data ? JSON.parse(data) : null;
-    } catch (e) {
+      const usuarioGuardado = localStorage.getItem('medbot_triage_user');
+      if (!usuarioGuardado) return null;
+      return JSON.parse(usuarioGuardado);
+    } catch (error) {
       return null;
     }
   },
 
-  setUser(user) {
-    if (user) {
-      localStorage.setItem('medbot_triage_user', JSON.stringify(user));
+  // 4. GUARDAR LOS DATOS DEL USUARIO
+  setUser(usuario) {
+    if (usuario) {
+      localStorage.setItem('medbot_triage_user', JSON.stringify(usuario));
     } else {
       localStorage.removeItem('medbot_triage_user');
     }
   },
 
+  // 5. CERRAR SESIÓN
+  // Limpia el token y recarga la página para mostrar el login
   logout() {
     this.setToken(null);
     this.setUser(null);
     window.location.reload();
   },
 
-  async request(endpoint, options = {}) {
-    const url = `/api${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+  // 6. FUNCIÓN GENERAL PARA HACER PETICIONES AL SERVIDOR
+  // Usa "fetch" para enviar o pedir datos a las rutas /api/...
+  async request(ruta, opciones = {}) {
+    // Si la ruta no empieza con /, se lo agregamos
+    const url = ruta.startsWith('/') ? `/api${ruta}` : `/api/${ruta}`;
+
+    // Configuramos los encabezados
     const headers = {
       'Content-Type': 'application/json',
-      ...options.headers
+      ...opciones.headers
     };
 
+    // Si tenemos token guardado, lo enviamos en la cabecera
     const token = this.getToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers
+      // Hacemos la petición HTTP al backend
+      const respuesta = await fetch(url, {
+        ...opciones,
+        headers: headers
       });
 
-      if (response.status === 401) {
-        this.showToast('Sesión expirada o no autorizada. Ingrese nuevamente.', 'warning');
-        this.logout();
-        throw new Error('Sesión no autorizada.');
+      // Leemos la respuesta como JSON
+      const datos = await respuesta.json().catch(() => ({}));
+
+      // Si el servidor nos dice 401 (no autorizado o token vencido)
+      if (respuesta.status === 401) {
+        this.showToast('Tu sesión expiró. Por favor vuelve a ingresar.', 'warning');
+        // Esperamos medio segundo y cerramos sesión
+        setTimeout(() => this.logout(), 600);
+        throw new Error('Sesión expirada');
       }
 
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        const errorMsg = data.error || `Error ${response.status}: ${response.statusText}`;
-        throw new Error(errorMsg);
+      // Si hubo algún otro error (ej: 400, 404, 500)
+      if (!respuesta.ok) {
+        const mensajeError = datos.error || 'Ocurrió un error en el servidor';
+        throw new Error(mensajeError);
       }
 
-      return data;
-    } catch (err) {
-      console.error(`Error en petición a ${url}:`, err);
-      throw err;
+      // Todo salió bien, devolvemos los datos
+      return datos;
+
+    } catch (error) {
+      console.log('Error en la petición a ' + url + ':', error.message);
+      throw error;
     }
   },
 
-  get(endpoint) {
-    return this.request(endpoint, { method: 'GET' });
+  // 7. MÉTODOS CORTOS PARA GET, POST Y PUT
+  // Para consultar información
+  get(ruta) {
+    return this.request(ruta, { method: 'GET' });
   },
 
-  post(endpoint, body) {
-    return this.request(endpoint, {
+  // Para enviar o crear nueva información
+  post(ruta, cuerpo) {
+    return this.request(ruta, {
       method: 'POST',
-      body: JSON.stringify(body)
+      body: JSON.stringify(cuerpo)
     });
   },
 
-  put(endpoint, body) {
-    return this.request(endpoint, {
+  // Para editar o actualizar información existente
+  put(ruta, cuerpo) {
+    return this.request(ruta, {
       method: 'PUT',
-      body: JSON.stringify(body)
+      body: JSON.stringify(cuerpo)
     });
   },
 
-  showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    if (!container) return;
+  // 8. MOSTRAR MENSAJES (TOAST) EN LA PANTALLA
+  // Muestra una notificación visual en la esquina inferior
+  showToast(mensaje, tipo = 'info') {
+    const contenedor = document.getElementById('toast-container');
+    if (!contenedor) return;
 
-    const toast = document.createElement('div');
-    const colors = {
-      success: 'bg-emerald-600 text-white border-emerald-700',
-      error: 'bg-rose-600 text-white border-rose-700',
-      warning: 'bg-amber-500 text-white border-amber-600',
-      info: 'bg-slate-800 text-white border-slate-700'
+    // Colores según el tipo de mensaje
+    const colores = {
+      success: 'bg-emerald-600 text-white',
+      error: 'bg-rose-600 text-white',
+      warning: 'bg-amber-500 text-white',
+      info: 'bg-slate-800 text-white'
     };
 
-    const icons = {
-      success: '<i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>',
-      error: '<i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>',
-      warning: '<i data-lucide="alert-triangle" class="w-5 h-5 flex-shrink-0"></i>',
-      info: '<i data-lucide="info" class="w-5 h-5 flex-shrink-0"></i>'
-    };
-
-    toast.className = `flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border text-sm font-medium transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
-    toast.innerHTML = `
-      ${icons[type] || icons.info}
-      <span class="flex-1">${message}</span>
-      <button class="opacity-75 hover:opacity-100 transition-opacity ml-2">&times;</button>
+    // Crear la cajita del mensaje
+    const cajita = document.createElement('div');
+    cajita.className = `flex items-center justify-between gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${colores[tipo] || colores.info}`;
+    cajita.innerHTML = `
+      <span>${mensaje}</span>
+      <button style="font-weight:bold; cursor:pointer;" onclick="this.parentElement.remove()">&times;</button>
     `;
 
-    container.appendChild(toast);
-    if (window.lucide) window.lucide.createIcons();
+    contenedor.appendChild(cajita);
 
-    // Fade-in
+    // Se borra sola a los 4 segundos
     setTimeout(() => {
-      toast.classList.remove('translate-y-2', 'opacity-0');
-    }, 10);
-
-    const closeBtn = toast.querySelector('button');
-    closeBtn.onclick = () => {
-      toast.classList.add('opacity-0', 'translate-y-2');
-      setTimeout(() => toast.remove(), 300);
-    };
-
-    // Auto-remove después de 4.5 segundos
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.classList.add('opacity-0', 'translate-y-2');
-        setTimeout(() => toast.remove(), 300);
+      if (cajita.parentNode) {
+        cajita.remove();
       }
-    }, 4500);
+    }, 4000);
   }
 };
-
