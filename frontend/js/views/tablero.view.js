@@ -38,7 +38,7 @@ const TableroView = {
           <div class="flex flex-wrap items-center justify-between gap-3 pt-4 mt-4 border-t border-slate-100">
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Filtrar Nivel:</span>
-              <button data-filter-nivel="ALL" class="btn-filter-nivel px-2.5 py-1 text-xs font-medium rounded-md bg-slate-900 text-white shadow-sm">Todos</button>
+              <button data-filter-nivel="ALL" class="btn-filter-nivel px-2.5 py-1 text-xs font-bold rounded bg-blue-600 text-white">Todos</button>
               <button data-filter-nivel="1" class="btn-filter-nivel px-2.5 py-1 text-xs font-medium rounded-md bg-red-100 text-red-800 hover:bg-red-200">Triage I (Rojo)</button>
               <button data-filter-nivel="2" class="btn-filter-nivel px-2.5 py-1 text-xs font-medium rounded-md bg-orange-100 text-orange-800 hover:bg-orange-200">Triage II (Naranja)</button>
               <button data-filter-nivel="3" class="btn-filter-nivel px-2.5 py-1 text-xs font-medium rounded-md bg-amber-100 text-amber-800 hover:bg-amber-200">Triage III (Amarillo)</button>
@@ -84,7 +84,7 @@ const TableroView = {
         filterNivelBtns.forEach(b => {
           b.className = 'btn-filter-nivel px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 bg-slate-100 hover:bg-slate-200';
         });
-        btn.className = 'btn-filter-nivel px-2.5 py-1 text-xs font-medium rounded-md bg-slate-900 text-white shadow-sm';
+        btn.className = 'btn-filter-nivel px-2.5 py-1 text-xs font-bold rounded bg-blue-600 text-white';
         this.currentFilterNivel = btn.getAttribute('data-filter-nivel');
         this.renderCards();
       };

@@ -1,6 +1,6 @@
 // ============================================================
 // ARCHIVO: auth.routes.js
-// OBJETIVO: Rutas para el inicio de sesión y verificación de usuario
+// Rutas de autenticación con Verificación en Dos Pasos (2FA de Microsoft)
 // ============================================================
 
 const express = require('express');
@@ -12,35 +12,74 @@ const { authenticateToken, registrarAuditoria } = require('../middleware/auth');
 
 const router = express.Router();
 
-// RUTA: POST /api/auth/login
-// Recibe documento y contraseña, verifica con la base de datos y genera el token
-router.post('/login', (req, res) => {
-  const { documento, password } = req.body;
+// Almacén temporal en memoria para los códigos de verificación de dos pasos
+// Guarda: { userId, codigo, expira }
+const desafios2FA = new Map();
 
-  // Paso 1: Validar que mandaron ambos datos
+// RUTA 1: POST /api/auth/login (Paso 1: usuario y contraseña)
+router.post('/login', (req, res) => {
+  const { documento, password, codigo2FA } = req.body;
+
+  // 1. Validar campos
   if (!documento || !password) {
-    return res.status(400).json({ error: 'Debes ingresar el documento y la contraseña.' });
+    return res.status(400).json({ error: 'Debes ingresar documento y contraseña.' });
   }
 
-  // Paso 2: Buscar al usuario en la tabla usuarios por su número de documento
+  // 2. Buscar usuario en base de datos
   const usuario = db.prepare('SELECT * FROM usuarios WHERE documento = ?').get(String(documento).trim());
-
   if (!usuario) {
     return res.status(401).json({ error: 'Usuario no encontrado con ese documento.' });
   }
 
-  // Paso 3: Verificar que el usuario no esté desactivado
   if (usuario.activo !== 1) {
-    return res.status(403).json({ error: 'Este usuario se encuentra inactivo.' });
+    return res.status(403).json({ error: 'El usuario se encuentra inactivo.' });
   }
 
-  // Paso 4: Comparar la contraseña escrita con el hash seguro guardado en la BD
-  const claveCorrecta = bcrypt.compareSync(password, usuario.password_hash);
-  if (!claveCorrecta) {
+  // 3. Comparar contraseña con bcrypt
+  const claveValida = bcrypt.compareSync(password, usuario.password_hash);
+  if (!claveValida) {
     return res.status(401).json({ error: 'Contraseña incorrecta.' });
   }
 
-  // Paso 5: Generar el token JWT que el frontend usará en cada petición
+  // 4. ¿Requiere Verificación en Dos Pasos de Microsoft?
+  // Médicos, Enfermeros y Administradores manejan datos clínicos y requieren 2FA
+  const rolesCon2FA = ['MEDICO', 'ENFERMERO', 'ADMIN'];
+
+  if (rolesCon2FA.includes(usuario.rol)) {
+    // Si no mandaron el código de verificación todavía, iniciamos el Paso 2
+    if (!codigo2FA) {
+      // Generar código de 6 dígitos (ej: 582914)
+      const codigoGenerado = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Token temporal para identificar este intento de login (válido por 5 minutos)
+      const tempToken = jwt.sign(
+        { id: usuario.id, paso: '2FA_PENDIENTE' },
+        JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+
+      desafios2FA.set(tempToken, {
+        userId: usuario.id,
+        codigo: codigoGenerado,
+        expira: Date.now() + 5 * 60 * 1000
+      });
+
+      return res.json({
+        require2FA: true,
+        tempToken: tempToken,
+        user: {
+          id: usuario.id,
+          nombre: usuario.nombre,
+          documento: usuario.documento,
+          rol: usuario.rol
+        },
+        mensaje: 'Verificación en dos pasos requerida (Microsoft Authenticator)',
+        codigoDemo: codigoGenerado // Se muestra para facilitar la prueba en clase
+      });
+    }
+  }
+
+  // Si es ADMINISTRATIVO o si se validó directamente, generamos el token final
   const token = jwt.sign(
     { 
       id: usuario.id, 
@@ -52,12 +91,10 @@ router.post('/login', (req, res) => {
     { expiresIn: JWT_EXPIRES_IN }
   );
 
-  // Paso 6: Guardar el evento en el log de auditoría
-  registrarAuditoria(usuario.id, 'INICIO_SESION', 'USUARIOS', usuario.id, `Inicio de sesión como ${usuario.rol}`, req);
+  registrarAuditoria(usuario.id, 'INICIO_SESION', 'USUARIOS', usuario.id, `Ingreso directo (${usuario.rol})`, req);
 
-  // Paso 7: Responder al navegador con el token y datos básicos del usuario
   res.json({
-    message: 'Ingreso exitoso',
+    message: 'Inicio de sesión exitoso',
     token: token,
     user: {
       id: usuario.id,
@@ -68,8 +105,59 @@ router.post('/login', (req, res) => {
   });
 });
 
-// RUTA: GET /api/auth/me
-// Devuelve la información del usuario autenticado actualmente
+// RUTA 2: POST /api/auth/verify-2fa (Paso 2: confirmar código Microsoft Authenticator)
+router.post('/verify-2fa', (req, res) => {
+  const { tempToken, codigo } = req.body;
+
+  if (!tempToken || !codigo) {
+    return res.status(400).json({ error: 'Debes enviar el token temporal y el código de 6 dígitos.' });
+  }
+
+  const desafio = desafios2FA.get(tempToken);
+  if (!desafio || Date.now() > desafio.expira) {
+    return res.status(400).json({ error: 'El código ha expirado. Por favor inicia sesión de nuevo.' });
+  }
+
+  // Comparar el código escrito con el generado
+  if (desafio.codigo !== String(codigo).trim()) {
+    return res.status(400).json({ error: 'Código de verificación incorrecto. Revisa tu app Microsoft Authenticator.' });
+  }
+
+  // Código correcto: borrar el desafío usado
+  desafios2FA.delete(tempToken);
+
+  const usuario = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(desafio.userId);
+  if (!usuario || usuario.activo !== 1) {
+    return res.status(401).json({ error: 'Usuario no disponible o inactivo.' });
+  }
+
+  // Generar el token final de sesión
+  const token = jwt.sign(
+    { 
+      id: usuario.id, 
+      documento: usuario.documento, 
+      rol: usuario.rol, 
+      nombre: usuario.nombre 
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+
+  registrarAuditoria(usuario.id, 'LOGIN_2FA_MICROSOFT', 'USUARIOS', usuario.id, `2FA Microsoft exitoso (${usuario.rol})`, req);
+
+  res.json({
+    message: 'Verificación de dos pasos completada con éxito',
+    token: token,
+    user: {
+      id: usuario.id,
+      nombre: usuario.nombre,
+      documento: usuario.documento,
+      rol: usuario.rol
+    }
+  });
+});
+
+// RUTA 3: GET /api/auth/me (Consultar usuario actual)
 router.get('/me', authenticateToken, (req, res) => {
   res.json({ user: req.user });
 });

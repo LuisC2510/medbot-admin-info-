@@ -3,135 +3,112 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Triage de Urgencias | Res. 5596/2015 MinSalud Colombia</title>
+  <title>Sistema de Triage de Urgencias | Universidad Santiago de Cali</title>
   
-  <!-- Favicon e Iconos -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
   
-  <!-- Fuente Google Inter -->
+  <!-- Fuente e iconos -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind CSS para diseño limpio -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-          }
-        }
-      }
-    }
-  </script>
 
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Estilos Personalizados y Animaciones Clínicas -->
+  <!-- Estilos propios sencillos -->
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased font-sans min-h-screen flex flex-col selection:bg-blue-600 selection:text-white">
+<body class="bg-slate-50 text-slate-800 antialiased font-sans min-h-screen flex flex-col">
 
-  <!-- BANNER PROMINENTE DE MODO EMERGENCIA / DESASTRE CON MÚLTIPLES VÍCTIMAS -->
-  <div id="global-emergency-banner" class="hidden emergency-banner-active text-white px-4 py-2.5 text-center text-xs sm:text-sm font-extrabold uppercase tracking-wide flex items-center justify-center gap-2 shadow-md z-50">
-    <i data-lucide="alert-triangle" class="w-5 h-5 flex-shrink-0 animate-bounce"></i>
-    <span>⚠️ ATENCIÓN: MODO DESASTRE / CONTINGENCIA DE VÍCTIMAS MÚLTIPLES ACTIVADO — LÍMITES NORMATIVOS DE ESPERA TEMPORALMENTE SUSPENDIDOS (RES. 5596/2015) ⚠️</span>
+  <!-- BANNER SENCILLO: MODO EMERGENCIA / DESASTRE -->
+  <div id="global-emergency-banner" class="hidden emergency-banner-active px-4 py-2 text-center text-xs sm:text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2">
+    <span>⚠️ MODO EMERGENCIA / CONTINGENCIA ACTIVO: Tiempos de espera normativos suspendidos temporalmente</span>
   </div>
 
-  <!-- CONTENEDOR 1: AUTENTICACIÓN (LOGIN) -->
+  <!-- PANTALLA DE INICIO DE SESIÓN Y 2FA MICROSOFT -->
   <div id="auth-container"></div>
 
-  <!-- CONTENEDOR 2: APLICACIÓN PRINCIPAL AUTENTICADA -->
-  <div id="app-container" class="hidden flex-1 flex flex-col lg:flex-row min-h-screen">
+  <!-- APLICACIÓN PRINCIPAL (CUANDO YA INICIÓ SESIÓN) -->
+  <div id="app-container" class="hidden flex-1 flex flex-col md:flex-row min-h-screen">
     
-    <!-- SIDEBAR DE NAVEGACIÓN POR ROL -->
-    <aside class="w-full lg:w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col justify-between border-r border-slate-800 shadow-xl">
+    <!-- BARRA LATERAL SENCILLA (SIDEBAR) -->
+    <aside class="w-full md:w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col justify-between">
       <div>
-        <!-- Logotipo y Membrete Institucional -->
-        <div class="p-5 border-b border-slate-800 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md">
-            <i data-lucide="activity" class="w-6 h-6"></i>
+        <!-- Logotipo Institucional Sencillo -->
+        <div class="p-4 border-b border-slate-200 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-lg">
+            🏥
           </div>
           <div>
-            <h2 class="text-sm font-black text-white tracking-tight leading-tight">TRIAGE URGENCIAS</h2>
-            <span class="text-[10px] text-blue-400 font-bold block uppercase tracking-wider">Res. 5596 / 2015</span>
-            <span class="text-[9px] text-slate-500 block">Univ. Santiago de Cali</span>
+            <h2 class="text-sm font-bold text-slate-800 leading-tight">Triage Urgencias</h2>
+            <p class="text-xs text-blue-600 font-semibold">Res. 5596 de 2015</p>
+            <p class="text-[11px] text-slate-400">Univ. Santiago de Cali</p>
           </div>
         </div>
 
-        <!-- Menú Dinámico por Rol -->
+        <!-- Menú de Navegación por Rol -->
         <div class="p-3">
-          <p class="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Módulos del Sistema</p>
+          <p class="px-2 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider">Menú</p>
           <nav id="sidebar-navigation" class="space-y-1 mt-1">
-            <!-- Inyectado dinámicamente según el rol en app.js -->
+            <!-- Se llena con app.js según el rol -->
           </nav>
         </div>
       </div>
 
-      <!-- Pie del Sidebar: Info de Usuario y Cerrar Sesión -->
-      <div class="p-4 border-t border-slate-800 bg-slate-950/60">
-        <div class="flex items-center gap-3 mb-3">
-          <div class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-white text-xs font-bold">
-            <i data-lucide="user-check" class="w-4 h-4"></i>
-          </div>
-          <div class="overflow-hidden">
-            <p id="header-user-name" class="text-xs font-bold text-white truncate">Usuario</p>
-            <span id="header-user-role" class="text-[10px] font-bold">ROL</span>
-          </div>
+      <!-- Pie de la barra lateral: Datos del Usuario y Botón Salir -->
+      <div class="p-4 border-t border-slate-200 bg-slate-50">
+        <div class="mb-3">
+          <p id="header-user-name" class="text-xs font-bold text-slate-800 truncate">Nombre Usuario</p>
+          <span id="header-user-role" class="text-[11px] font-semibold text-blue-700">ROL</span>
         </div>
 
-        <button id="btn-logout" class="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold text-rose-300 bg-rose-950/30 hover:bg-rose-900/50 rounded-lg border border-rose-800/40 transition-colors">
+        <button id="btn-logout" class="w-full py-1.5 px-3 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 flex items-center justify-center gap-1.5 transition-colors">
           <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
           <span>Cerrar Sesión</span>
         </button>
       </div>
     </aside>
 
-    <!-- ÁREA PRINCIPAL DE CONTENIDO -->
-    <main class="flex-1 flex flex-col overflow-y-auto bg-slate-100 min-h-screen">
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-1 flex flex-col min-h-screen bg-slate-50">
       
-      <!-- Topbar Institucional -->
-      <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md uppercase tracking-wider">
-            Servicio de Urgencias Hospitalarias
+      <!-- Barra Superior (Header) -->
+      <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded">
+            Servicio de Urgencias
           </span>
-          <span class="hidden sm:inline-block text-xs text-slate-500">•</span>
-          <span class="hidden sm:inline-block text-xs text-slate-600 font-medium">
-            Hospital Universitario Departamental
-          </span>
+          <span class="text-xs text-slate-400">• Hospital Universitario</span>
         </div>
 
-        <div class="flex items-center gap-4">
-          <div id="socket-status-badge"></div>
-          <div class="text-right hidden sm:block">
-            <span id="topbar-live-clock" class="digital-clock text-xs font-bold text-slate-700"></span>
-          </div>
+        <div class="flex items-center gap-3">
+          <span id="socket-status-badge"></span>
+          <span id="topbar-live-clock" class="digital-clock text-xs font-bold text-slate-600"></span>
         </div>
       </header>
 
-      <!-- Contenedor de la Vista Activa -->
-      <div id="main-view-container" class="p-4 sm:p-6 lg:p-8 flex-1 max-w-7xl w-full mx-auto">
-        <!-- Renderizado dinámico de las vistas -->
+      <!-- Vista que se muestra según la opción elegida -->
+      <div id="main-view-container" class="p-4 md:p-6 flex-1 max-w-7xl w-full mx-auto">
+        <!-- Renderizado dinámico -->
       </div>
     </main>
 
   </div>
 
-  <!-- MODAL GLOBAL -->
-  <div id="modal-container" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-    <div id="modal-content-box" class="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden my-8 max-h-[90vh] overflow-y-auto">
-      <!-- Inyectado por App.abrirModal -->
+  <!-- VENTANA MODAL SENCILLA PARA FORMULARIOS Y ACCIONES -->
+  <div id="modal-container" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto">
+    <div id="modal-content-box" class="bg-white rounded-xl shadow-lg border border-slate-200 w-full max-w-2xl overflow-hidden my-6 max-h-[90vh] overflow-y-auto">
+      <!-- Se inyecta con App.abrirModal -->
     </div>
   </div>
 
-  <!-- CONTENEDOR DE TOAST NOTIFICATIONS -->
-  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-auto"></div>
+  <!-- CONTENEDOR DE MENSAJES TOAST -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full"></div>
 
-  <!-- Scripts de la Aplicación -->
+  <!-- SCRIPTS -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/api.js"></script>
   <script src="js/timer.js"></script>
@@ -144,20 +121,17 @@
   <script src="js/views/admin.view.js"></script>
   <script src="js/app.js"></script>
 
-  <!-- Reloj Topbar -->
+  <!-- Reloj de la barra superior -->
   <script>
-    function updateTopbarClock() {
+    function actualizarReloj() {
       const el = document.getElementById('topbar-live-clock');
       if (el) {
-        const now = new Date();
-        el.textContent = now.toLocaleDateString('es-CO', { 
-          weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' 
-        }) + ' • ' + now.toLocaleTimeString('es-CO');
+        const ahora = new Date();
+        el.textContent = ahora.toLocaleTimeString('es-CO');
       }
     }
-    setInterval(updateTopbarClock, 1000);
-    updateTopbarClock();
+    setInterval(actualizarReloj, 1000);
+    actualizarReloj();
   </script>
 </body>
 </html>
-

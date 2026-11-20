@@ -54,65 +54,55 @@ const App = {
     if (!container) return;
 
     container.innerHTML = `
-      <div class="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
-        <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
+      <div class="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
           
-          <!-- Cabecera Institucional -->
-          <div class="bg-gradient-to-r from-blue-700 to-indigo-800 p-6 text-white text-center">
-            <div class="w-14 h-14 bg-white/10 rounded-2xl mx-auto flex items-center justify-center backdrop-blur-sm mb-3">
-              <i data-lucide="cross" class="w-8 h-8 text-white"></i>
-            </div>
-            <h2 class="text-xl font-black tracking-tight">SISTEMA DE TRIAGE HOSPITALARIO</h2>
-            <p class="text-xs text-blue-100 mt-1">Resolución 5596 de 2015 • MinSalud Colombia</p>
-            <p class="text-[11px] text-blue-200/80 font-medium mt-0.5">Universidad Santiago de Cali • Adm. de la Información</p>
+          <!-- Encabezado Sencillo -->
+          <div class="bg-blue-600 p-5 text-white text-center">
+            <span class="text-3xl block mb-1">🏥</span>
+            <h2 class="text-lg font-bold">Sistema de Triage de Urgencias</h2>
+            <p class="text-xs text-blue-100">Universidad Santiago de Cali • Res. 5596/2015</p>
           </div>
 
           <!-- Formulario de Acceso -->
           <div class="p-6">
             <form id="form-login" class="space-y-4">
               <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Documento / Usuario</label>
-                <div class="relative">
-                  <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                  <input type="text" id="login-documento" required placeholder="Número de documento..." class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                </div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Documento / Usuario</label>
+                <input type="text" id="login-documento" required placeholder="Número de documento..." class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
               </div>
 
               <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contraseña</label>
-                <div class="relative">
-                  <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                  <input type="password" id="login-password" required placeholder="••••••••" class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                </div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Contraseña</label>
+                <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
               </div>
 
-              <button type="submit" class="w-full py-2.5 px-4 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
-                <span>Ingresar al Sistema</span>
-                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+              <button type="submit" class="w-full py-2.5 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors">
+                Iniciar Sesión
               </button>
             </form>
 
-            <!-- Acceso Rápido para Pruebas / Calificación Universitaria -->
-            <div class="mt-6 pt-5 border-t border-slate-100">
-              <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center mb-2.5">
-                Acceso rápido por Rol (Demostración y Pruebas):
+            <!-- Acceso Rápido para Pruebas / Demostración -->
+            <div class="mt-5 pt-4 border-t border-slate-200">
+              <p class="text-xs font-bold text-slate-500 text-center mb-2">
+                Accesos de Prueba por Rol:
               </p>
               <div class="grid grid-cols-2 gap-2 text-xs">
-                <button onclick="App.loginRapido('1001', 'Admin123!')" class="p-2 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 text-left transition-colors">
-                  <strong class="block font-bold">1. Administrativo</strong>
-                  <span class="text-[10px] text-blue-600">Doc: 1001 (Admisiones)</span>
+                <button type="button" onclick="App.loginRapido('1001', 'Admin123!')" class="p-2 rounded border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 text-left transition-colors">
+                  <strong>1. Admisiones</strong>
+                  <span class="text-[10px] text-blue-600 block">Doc: 1001 (Directo)</span>
                 </button>
-                <button onclick="App.loginRapido('1002', 'Enfermero123!')" class="p-2 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-left transition-colors">
-                  <strong class="block font-bold">2. Enfermero Jefe</strong>
-                  <span class="text-[10px] text-amber-600">Doc: 1002 (Triage)</span>
+                <button type="button" onclick="App.loginRapido('1002', 'Enfermero123!')" class="p-2 rounded border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-left transition-colors">
+                  <strong>2. Enfermero Jefe</strong>
+                  <span class="text-[10px] text-amber-600 block">Doc: 1002 (Pide 2FA)</span>
                 </button>
-                <button onclick="App.loginRapido('1003', 'Medico123!')" class="p-2 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-left transition-colors">
-                  <strong class="block font-bold">3. Médico Urgencias</strong>
-                  <span class="text-[10px] text-emerald-600">Doc: 1003 (Atención)</span>
+                <button type="button" onclick="App.loginRapido('1003', 'Medico123!')" class="p-2 rounded border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-left transition-colors">
+                  <strong>3. Médico</strong>
+                  <span class="text-[10px] text-emerald-600 block">Doc: 1003 (Pide 2FA)</span>
                 </button>
-                <button onclick="App.loginRapido('1000', 'Admin123!')" class="p-2 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 text-left transition-colors">
-                  <strong class="block font-bold">4. Administrador</strong>
-                  <span class="text-[10px] text-purple-600">Doc: 1000 (Configuración)</span>
+                <button type="button" onclick="App.loginRapido('1000', 'Admin123!')" class="p-2 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 text-left transition-colors">
+                  <strong>4. Administrador</strong>
+                  <span class="text-[10px] text-purple-600 block">Doc: 1000 (Pide 2FA)</span>
                 </button>
               </div>
             </div>
@@ -121,8 +111,6 @@ const App = {
         </div>
       </div>
     `;
-
-    if (window.lucide) window.lucide.createIcons();
 
     const form = document.getElementById('form-login');
     form.onsubmit = async (e) => {
@@ -133,12 +121,104 @@ const App = {
     };
   },
 
+  // PANTALLA: VERIFICACIÓN EN DOS PASOS DE MICROSOFT (2FA)
+  renderMicrosoft2FAForm(datos2FA) {
+    const container = document.getElementById('auth-container');
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+          
+          <!-- Encabezado con Logotipo de Microsoft -->
+          <div class="p-5 border-b border-slate-100 text-center bg-white">
+            <!-- Logo oficial de 4 colores de Microsoft -->
+            <div class="grid grid-cols-2 gap-1 w-6 h-6 mx-auto mb-3">
+              <span class="bg-[#f25022] rounded-xs"></span>
+              <span class="bg-[#7fba00] rounded-xs"></span>
+              <span class="bg-[#00a4ef] rounded-xs"></span>
+              <span class="bg-[#ffb900] rounded-xs"></span>
+            </div>
+            <h2 class="text-base font-bold text-slate-800">Verificación en dos pasos</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Seguridad Microsoft Authenticator / Cuenta Institucional</p>
+          </div>
+
+          <div class="p-6">
+            <div class="mb-4 text-center">
+              <p class="text-sm font-semibold text-slate-800">${datos2FA.user.nombre}</p>
+              <span class="inline-block mt-1 px-2.5 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
+                Rol: ${datos2FA.user.rol}
+              </span>
+              <p class="text-xs text-slate-500 mt-2">
+                Por seguridad clínica institucional, este rol requiere ingresar el código de verificación de 6 dígitos.
+              </p>
+            </div>
+
+            <!-- Formulario de Código 2FA -->
+            <form id="form-2fa" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-center">Código de seguridad (6 dígitos)</label>
+                <input type="text" id="input-codigo-2fa" maxlength="6" required autofocus placeholder="000000" class="digital-clock w-full text-center text-2xl font-bold tracking-widest px-3 py-2 border-2 border-blue-400 rounded focus:outline-none focus:border-blue-600">
+              </div>
+
+              <!-- Ayuda para demostración en clase -->
+              <div class="p-3 bg-blue-50 border border-blue-200 rounded text-center">
+                <span class="text-xs text-slate-600 block mb-1">Código generado para esta prueba:</span>
+                <span class="digital-clock font-bold text-blue-700 text-base tracking-widest">${datos2FA.codigoDemo}</span>
+                <button type="button" onclick="document.getElementById('input-codigo-2fa').value = '${datos2FA.codigoDemo}'" class="mt-1.5 block mx-auto text-[11px] text-blue-600 hover:underline font-semibold">
+                  (Clic aquí para autorrellenar código)
+                </button>
+              </div>
+
+              <div class="space-y-2 pt-2">
+                <button type="submit" class="w-full py-2.5 px-4 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors">
+                  Verificar e Ingresar
+                </button>
+                <button type="button" onclick="App.renderLoginForm()" class="w-full py-2 px-4 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors">
+                  Cancelar y volver
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const form2FA = document.getElementById('form-2fa');
+    form2FA.onsubmit = async (e) => {
+      e.preventDefault();
+      const codigo = document.getElementById('input-codigo-2fa').value.trim();
+
+      try {
+        const respuesta = await API.post('/auth/verify-2fa', {
+          tempToken: datos2FA.tempToken,
+          codigo: codigo
+        });
+
+        API.setToken(respuesta.token);
+        API.setUser(respuesta.user);
+        API.showToast(`Identidad verificada. Bienvenido(a), ${respuesta.user.nombre}`, 'success');
+        this.checkAuth();
+      } catch (err) {
+        API.showToast(err.message, 'error');
+      }
+    };
+  },
+
   async login(documento, password) {
     try {
       const res = await API.post('/auth/login', { documento, password });
+
+      // Si el backend indica que este rol pide 2FA de Microsoft
+      if (res.require2FA) {
+        this.renderMicrosoft2FAForm(res);
+        return;
+      }
+
+      // Si es ingreso directo (ej. Administrativo)
       API.setToken(res.token);
       API.setUser(res.user);
-      API.showToast(`Bienvenido(a), ${res.user.nombre} (${res.user.rol})`, 'success');
+      API.showToast(`Bienvenido(a), ${res.user.nombre}`, 'success');
       this.checkAuth();
     } catch (err) {
       API.showToast(err.message, 'error');
@@ -211,8 +291,8 @@ const App = {
     }
 
     nav.innerHTML = items.map(item => `
-      <button data-view="${item.id}" class="nav-item-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:text-white hover:bg-slate-800">
-        <i data-lucide="${item.icon}" class="w-4 h-4 flex-shrink-0"></i>
+      <button data-view="${item.id}" class="nav-item-btn w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+        <i data-lucide="${item.icon}" class="w-4 h-4 text-slate-500 flex-shrink-0"></i>
         <span>${item.label}</span>
       </button>
     `).join('');
@@ -230,13 +310,13 @@ const App = {
   navigate(viewId) {
     this.currentView = viewId;
 
-    // Actualizar clase activa en sidebar
+    // Actualizar clase activa en sidebar (estilo limpio y claro)
     const navBtns = document.querySelectorAll('.nav-item-btn');
     navBtns.forEach(btn => {
       if (btn.getAttribute('data-view') === viewId) {
-        btn.className = 'nav-item-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 shadow-sm';
+        btn.className = 'nav-item-btn w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200';
       } else {
-        btn.className = 'nav-item-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:text-white hover:bg-slate-800';
+        btn.className = 'nav-item-btn w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors';
       }
     });
 
