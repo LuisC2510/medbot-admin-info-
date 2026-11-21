@@ -109,14 +109,7 @@ const AdmisionesView = {
 
         let triageBadge = '<span class="text-xs text-slate-400 italic">Pendiente</span>';
         if (ing.triage_nivel) {
-          const colors = {
-            1: 'bg-red-600 text-white',
-            2: 'bg-orange-500 text-white',
-            3: 'bg-amber-500 text-white',
-            4: 'bg-emerald-600 text-white',
-            5: 'bg-blue-600 text-white'
-          };
-          triageBadge = `<span class="px-2 py-0.5 text-xs font-bold rounded ${colors[ing.triage_nivel]}">${ing.triage_nombre}</span>`;
+          triageBadge = `<span class="px-2 py-0.5 text-xs font-bold rounded badge-triage-${ing.triage_nivel}">${ing.triage_nombre}</span>`;
         }
 
         return `

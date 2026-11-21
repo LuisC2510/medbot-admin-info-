@@ -60,8 +60,8 @@ const MedicoView = {
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">${p.consecutivo}</span>
                   <h3 class="text-base font-bold text-slate-900">${p.nombres} ${p.apellidos}</h3>
-                  <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${p.triage_color ? `bg-[${p.triage_color}] text-white` : 'bg-slate-200 text-slate-700'}">
-                    ${p.triage_nombre || 'Triage'}
+                  <span class="text-xs font-bold px-2.5 py-0.5 rounded-full badge-triage-${p.triage_nivel || 1}">
+                    ${p.triage_nombre || `Triage ${p.triage_nivel}`}
                   </span>
                   <span class="text-xs font-bold px-2.5 py-0.5 rounded-full ${isClosed ? 'bg-slate-100 text-slate-700' : 'bg-blue-100 text-blue-800'}">
                     ${isClosed ? 'Conducta Definida / Cerrado' : 'En Atención Médica Activa'}

@@ -76,14 +76,22 @@ const PacientesView = {
     const inputBuscar = container.querySelector('#input-buscar-pacientes');
     const btnBuscar = container.querySelector('#btn-ejecutar-busqueda');
 
+    let debounceTimer = null;
     const handleSearch = () => {
       this.loadPacientes(inputBuscar.value.trim());
     };
 
     if (btnBuscar) btnBuscar.onclick = handleSearch;
     if (inputBuscar) {
+      inputBuscar.oninput = () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(handleSearch, 250);
+      };
       inputBuscar.onkeydown = (e) => {
-        if (e.key === 'Enter') handleSearch();
+        if (e.key === 'Enter') {
+          clearTimeout(debounceTimer);
+          handleSearch();
+        }
       };
     }
   },

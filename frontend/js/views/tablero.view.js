@@ -3,6 +3,7 @@
 const TableroView = {
   currentFilterNivel: 'ALL',
   currentFilterAlerta: 'ALL',
+  searchTerm: '',
   data: [],
 
   async render(container) {
@@ -21,15 +22,27 @@ const TableroView = {
               </p>
             </div>
             
-            <div class="flex items-center gap-2">
-              <button id="btn-refresh-tablero" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition-colors">
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- Buscador en tiempo real -->
+              <div class="relative w-full sm:w-64">
+                <input 
+                  type="text" 
+                  id="input-buscar-tablero" 
+                  placeholder="🔍 Buscar paciente o cédula..." 
+                  value="${App.escapeHtml(this.searchTerm)}"
+                  class="w-full pl-3 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                >
+                <button id="btn-clear-search-tablero" class="absolute right-2.5 top-1.5 text-slate-400 hover:text-slate-600 text-xs ${this.searchTerm ? '' : 'hidden'}">&times;</button>
+              </div>
+
+              <button id="btn-refresh-tablero" class="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition-colors">
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                 <span>Actualizar</span>
               </button>
             </div>
           </div>
 
-          <!-- Métricas Resumen de Sala -->
+          <!-- Métricas Resumen de Sala (Pills interactivas) -->
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4" id="tablero-stats-bar">
             <!-- Inyectado dinámicamente -->
           </div>
@@ -46,14 +59,17 @@ const TableroView = {
               <button data-filter-nivel="5" class="btn-filter-nivel px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-800 hover:bg-blue-200">Triage V (Azul)</button>
             </div>
 
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Estado:</span>
-              <select id="select-filter-alerta" class="text-xs font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500">
-                <option value="ALL">Todas las Alertas</option>
-                <option value="POR_VENCER">Por Vencer (>75%)</option>
-                <option value="VENCIDO">Tiempo Vencido (>100%)</option>
-                <option value="EN_ATENCION">En Atención Médica</option>
-              </select>
+            <div class="flex items-center gap-3">
+              <span id="tablero-contador-visibles" class="text-xs font-medium text-slate-500"></span>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Estado:</span>
+                <select id="select-filter-alerta" class="text-xs font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500">
+                  <option value="ALL">Todas las Alertas</option>
+                  <option value="POR_VENCER">Por Vencer (>75%)</option>
+                  <option value="VENCIDO">Tiempo Vencido (>100%)</option>
+                  <option value="EN_ATENCION">En Atención Médica</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -76,6 +92,28 @@ const TableroView = {
     const refreshBtn = container.querySelector('#btn-refresh-tablero');
     if (refreshBtn) {
       refreshBtn.onclick = () => this.loadData();
+    }
+
+    const inputBuscar = container.querySelector('#input-buscar-tablero');
+    const btnClearSearch = container.querySelector('#btn-clear-search-tablero');
+
+    if (inputBuscar) {
+      inputBuscar.oninput = (e) => {
+        this.searchTerm = e.target.value.trim();
+        if (btnClearSearch) {
+          btnClearSearch.classList.toggle('hidden', !this.searchTerm);
+        }
+        this.renderCards();
+      };
+    }
+
+    if (btnClearSearch) {
+      btnClearSearch.onclick = () => {
+        this.searchTerm = '';
+        if (inputBuscar) inputBuscar.value = '';
+        btnClearSearch.classList.add('hidden');
+        this.renderCards();
+      };
     }
 
     const filterNivelBtns = container.querySelectorAll('.btn-filter-nivel');
@@ -113,6 +151,28 @@ const TableroView = {
     }
   },
 
+  filtrarRapido(tipo, valor) {
+    if (tipo === 'nivel') {
+      this.currentFilterNivel = valor;
+      this.currentFilterAlerta = 'ALL';
+    } else if (tipo === 'alerta') {
+      this.currentFilterAlerta = valor;
+      this.currentFilterNivel = 'ALL';
+    }
+    const selectAlerta = document.getElementById('select-filter-alerta');
+    if (selectAlerta) selectAlerta.value = this.currentFilterAlerta;
+
+    const filterNivelBtns = document.querySelectorAll('.btn-filter-nivel');
+    filterNivelBtns.forEach(btn => {
+      if (btn.getAttribute('data-filter-nivel') === String(this.currentFilterNivel)) {
+        btn.className = 'btn-filter-nivel px-2.5 py-1 text-xs font-bold rounded bg-blue-600 text-white shadow-sm';
+      } else {
+        btn.className = 'btn-filter-nivel px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 bg-slate-100 hover:bg-slate-200';
+      }
+    });
+    this.renderCards();
+  },
+
   renderStats() {
     const bar = document.getElementById('tablero-stats-bar');
     if (!bar) return;
@@ -125,27 +185,27 @@ const TableroView = {
     const vencidos = this.data.filter(p => p.alerta_estado === 'VENCIDO').length;
 
     bar.innerHTML = `
-      <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+      <div onclick="TableroView.filtrarRapido('nivel', 'ALL')" class="cursor-pointer bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 text-center transition-all hover:scale-[1.02]">
         <span class="text-xs font-bold text-slate-400 block uppercase">Total Activos</span>
         <span class="text-xl font-extrabold text-slate-800">${total}</span>
       </div>
-      <div class="bg-red-50 p-3 rounded-lg border border-red-200 text-center">
+      <div onclick="TableroView.filtrarRapido('nivel', '1')" class="cursor-pointer bg-red-50 hover:bg-red-100 p-3 rounded-lg border border-red-200 text-center transition-all hover:scale-[1.02]">
         <span class="text-xs font-bold text-red-600 block uppercase">Triage I (Rojo)</span>
         <span class="text-xl font-extrabold text-red-700">${t1}</span>
       </div>
-      <div class="bg-orange-50 p-3 rounded-lg border border-orange-200 text-center">
+      <div onclick="TableroView.filtrarRapido('nivel', '2')" class="cursor-pointer bg-orange-50 hover:bg-orange-100 p-3 rounded-lg border border-orange-200 text-center transition-all hover:scale-[1.02]">
         <span class="text-xs font-bold text-orange-600 block uppercase">Triage II</span>
         <span class="text-xl font-extrabold text-orange-700">${t2}</span>
       </div>
-      <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 text-center">
+      <div onclick="TableroView.filtrarRapido('nivel', '3')" class="cursor-pointer bg-amber-50 hover:bg-amber-100 p-3 rounded-lg border border-amber-200 text-center transition-all hover:scale-[1.02]">
         <span class="text-xs font-bold text-amber-600 block uppercase">Triage III</span>
         <span class="text-xl font-extrabold text-amber-700">${t3}</span>
       </div>
-      <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-200 text-center">
+      <div onclick="TableroView.filtrarRapido('nivel', '4')" class="cursor-pointer bg-emerald-50 hover:bg-emerald-100 p-3 rounded-lg border border-emerald-200 text-center transition-all hover:scale-[1.02]">
         <span class="text-xs font-bold text-emerald-600 block uppercase">Triage IV & V</span>
         <span class="text-xl font-extrabold text-emerald-700">${t4t5}</span>
       </div>
-      <div class="bg-rose-50 p-3 rounded-lg border border-rose-200 text-center">
+      <div onclick="TableroView.filtrarRapido('alerta', 'VENCIDO')" class="cursor-pointer bg-rose-50 hover:bg-rose-100 p-3 rounded-lg border border-rose-200 text-center transition-all hover:scale-[1.02]">
         <span class="text-xs font-bold text-rose-600 block uppercase">Tiempo Vencido</span>
         <span class="text-xl font-extrabold text-rose-700">${vencidos}</span>
       </div>
@@ -160,10 +220,27 @@ const TableroView = {
 
     let filtered = [...this.data];
 
+    // Filtrar por término de búsqueda en vivo
+    if (this.searchTerm) {
+      const q = this.searchTerm.toLowerCase();
+      filtered = filtered.filter(p => {
+        const nombreCompleto = `${p.nombres || ''} ${p.apellidos || ''}`.toLowerCase();
+        const doc = String(p.numero_documento || '').toLowerCase();
+        const consecutivo = String(p.consecutivo || '').toLowerCase();
+        const motivo = String(p.motivo_consulta || '').toLowerCase();
+        return nombreCompleto.includes(q) || doc.includes(q) || consecutivo.includes(q) || motivo.includes(q);
+      });
+    }
+
     // Filtrar por nivel
     if (this.currentFilterNivel !== 'ALL') {
       const n = parseInt(this.currentFilterNivel, 10);
-      filtered = filtered.filter(p => p.triage_nivel === n);
+      if (n === 4) {
+        // Triage IV & V juntos si se seleccionó la tarjeta combinada o 4
+        filtered = filtered.filter(p => p.triage_nivel === 4 || p.triage_nivel === 5);
+      } else {
+        filtered = filtered.filter(p => p.triage_nivel === n);
+      }
     }
 
     // Filtrar por alerta/estado
@@ -173,6 +250,11 @@ const TableroView = {
       filtered = filtered.filter(p => p.alerta_estado === 'VENCIDO');
     } else if (this.currentFilterAlerta === 'EN_ATENCION') {
       filtered = filtered.filter(p => p.estado === 'EN_ATENCION');
+    }
+
+    const contadorEl = document.getElementById('tablero-contador-visibles');
+    if (contadorEl) {
+      contadorEl.textContent = `Mostrando ${filtered.length} de ${this.data.length}`;
     }
 
     if (filtered.length === 0) {

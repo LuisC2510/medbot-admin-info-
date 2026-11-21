@@ -197,6 +197,22 @@ const EnfermeriaView = {
               </div>
             </div>
 
+            <!-- Asistente Clínico Inteligente de Signos Vitales (UX Interactiva) -->
+            <div id="panel-asistente-triage" class="p-3.5 rounded-xl border border-blue-200 bg-blue-50/70 transition-all">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">💡</span>
+                  <strong class="text-xs text-blue-900 font-bold uppercase tracking-wider">Asistente Clínico de Triage</strong>
+                </div>
+                <button type="button" id="btn-aplicar-sugerencia" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 hover:opacity-90 transition-opacity">
+                  <span id="badge-sugerencia-triage">Completar datos</span>
+                </button>
+              </div>
+              <p id="texto-sugerencia-triage" class="text-xs text-blue-800 mt-1">
+                Ingresa los signos vitales para obtener una sugerencia clínica orientativa según la Resolución 5596.
+              </p>
+            </div>
+
             <!-- Selección de Nivel de Triage (Res. 5596/2015) -->
             <div>
               <label class="block text-xs font-bold text-slate-700 uppercase mb-2">
@@ -264,6 +280,100 @@ const EnfermeriaView = {
 
       const sliderDolor = document.getElementById('tri-dolor');
       const labelDolor = document.getElementById('label-valor-dolor');
+
+      // Evaluador fisiológico en tiempo real (Asistente de Triage)
+      let sugerenciaActual = 3;
+      const evaluarSignosEnTiempoReal = () => {
+        const fc = parseInt(document.getElementById('tri-fc')?.value || 0, 10);
+        const fr = parseInt(document.getElementById('tri-fr')?.value || 0, 10);
+        const pas = parseInt(document.getElementById('tri-pas')?.value || 0, 10);
+        const pad = parseInt(document.getElementById('tri-pad')?.value || 0, 10);
+        const temp = parseFloat(document.getElementById('tri-temp')?.value || 0);
+        const spo2 = parseInt(document.getElementById('tri-spo2')?.value || 0, 10);
+        const dolor = parseInt(sliderDolor?.value || 0, 10);
+        const conciencia = document.getElementById('tri-conciencia')?.value || 'Alerta';
+
+        const alertas = [];
+        let nivel = 3;
+
+        // Criterios Triage I: Paro, Inconsciencia, Hipoxia extrema, Shock severo
+        if (conciencia === 'Inconsciente' || (spo2 > 0 && spo2 < 85) || (pas > 0 && pas < 70) || (fc > 0 && (fc < 35 || fc > 180))) {
+          nivel = 1;
+          if (conciencia === 'Inconsciente') alertas.push('Inconsciente / No responde');
+          if (spo2 > 0 && spo2 < 85) alertas.push(`Hipoxia severa crítica (SpO2 ${spo2}%)`);
+          if (pas > 0 && pas < 70) alertas.push(`Shock / Hipotensión extrema (PAS ${pas})`);
+          if (fc > 0 && (fc < 35 || fc > 180)) alertas.push(`Frecuencia cardíaca extrema (${fc} lpm)`);
+        }
+        // Criterios Triage II: Deterioro rápido, dolor insoportable, estupor, hipoxia moderada
+        else if (conciencia === 'Responde a dolor' || (spo2 > 0 && spo2 < 92) || (pas > 0 && pas > 180) || (fc > 0 && (fc < 50 || fc > 130)) || dolor >= 8) {
+          nivel = 2;
+          if (conciencia === 'Responde a dolor') alertas.push('Estupor / Responde solo a dolor');
+          if (spo2 > 0 && spo2 < 92) alertas.push(`Hipoxia moderada-severa (SpO2 ${spo2}%)`);
+          if (pas > 0 && pas > 180) alertas.push(`Crisis hipertensiva (PAS ${pas})`);
+          if (fc > 0 && (fc < 50 || fc > 130)) alertas.push(`Alteración del pulso (${fc} lpm)`);
+          if (dolor >= 8) alertas.push(`Dolor severo EVA ${dolor}/10`);
+        } else if (temp >= 38.5) {
+          nivel = 3;
+          alertas.push(`Síndrome febril agudo (${temp}°C)`);
+        } else if (dolor >= 4) {
+          nivel = 3;
+          alertas.push(`Dolor moderado EVA ${dolor}/10`);
+        } else if (dolor <= 3 && dolor > 0) {
+          nivel = 4;
+        }
+
+        sugerenciaActual = nivel;
+        const panel = document.getElementById('panel-asistente-triage');
+        const badge = document.getElementById('badge-sugerencia-triage');
+        const texto = document.getElementById('texto-sugerencia-triage');
+
+        if (!panel || !badge || !texto) return;
+
+        if (nivel === 1) {
+          panel.className = 'p-3.5 rounded-xl border border-red-300 bg-red-50 transition-all';
+          badge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-red-600 text-white animate-pulse';
+          badge.textContent = '🚨 Sugerencia: Triage I (Inmediato)';
+          texto.innerHTML = `<strong class="text-red-800">Riesgo vital detectado:</strong> ${alertas.join(' • ')}. Atención médica inmediata requerida.`;
+        } else if (nivel === 2) {
+          panel.className = 'p-3.5 rounded-xl border border-orange-300 bg-orange-50 transition-all';
+          badge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-orange-500 text-white';
+          badge.textContent = '⚠️ Sugerencia: Triage II (Hasta 30 min)';
+          texto.innerHTML = `<strong class="text-orange-800">Condición de alto riesgo:</strong> ${alertas.join(' • ')}. Puede deteriorarse con rapidez.`;
+        } else if (alertas.length > 0) {
+          panel.className = 'p-3.5 rounded-xl border border-amber-300 bg-amber-50 transition-all';
+          badge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white';
+          badge.textContent = '⚡ Sugerencia: Triage III (Hasta 120 min)';
+          texto.innerHTML = `<strong class="text-amber-800">Hallazgos clínicos:</strong> ${alertas.join(' • ')}. Paciente estable para exámenes/tratamiento.`;
+        } else {
+          panel.className = 'p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/70 transition-all';
+          badge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white';
+          badge.textContent = '✅ Signos en Rango Estable';
+          texto.textContent = 'Parámetros vitales en rango normal. Seleccione Triage III, IV o V según el motivo de consulta del paciente.';
+        }
+      };
+
+      // Botón para aplicar la sugerencia con un clic
+      const btnAplicar = document.getElementById('btn-aplicar-sugerencia');
+      if (btnAplicar) {
+        btnAplicar.onclick = () => {
+          const radio = document.querySelector(`input[name="nivel_triage"][value="${sugerenciaActual}"]`);
+          if (radio) {
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change'));
+            API.showToast(`Sugerencia aplicada: Triage ${sugerenciaActual}`, 'info');
+          }
+        };
+      }
+
+      // Escuchar cambios en todos los campos fisiológicos
+      ['tri-fc', 'tri-fr', 'tri-pas', 'tri-pad', 'tri-temp', 'tri-spo2'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.oninput = evaluarSignosEnTiempoReal;
+      });
+
+      const selConciencia = document.getElementById('tri-conciencia');
+      if (selConciencia) selConciencia.onchange = evaluarSignosEnTiempoReal;
+
       sliderDolor.oninput = () => {
         const val = sliderDolor.value;
         let desc = 'Sin dolor';
@@ -272,6 +382,7 @@ const EnfermeriaView = {
         else if (val >= 7 && val <= 9) desc = 'Severo';
         else if (val == 10) desc = 'Insuperable';
         labelDolor.textContent = `${val}/10 (${desc})`;
+        evaluarSignosEnTiempoReal();
       };
 
       const form = document.getElementById('form-valorar-triage');

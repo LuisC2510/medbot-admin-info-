@@ -151,6 +151,12 @@ const AdminView = {
         try {
           const actual = await API.get('/configuracion/emergencia');
           const nuevo = !actual.modo_emergencia;
+          const mensajeConfirm = nuevo
+            ? '⚠️ ¿Confirmas activar el MODO EMERGENCIA / DESASTRE CON MÚLTIPLES VÍCTIMAS?\n\nSegún la Resolución 5596 de 2015, los tiempos máximos normativos quedarán suspendidos y se notificará en tiempo real a todas las pantallas de urgencias.'
+            : 'ℹ️ ¿Deseas DESACTIVAR el Modo Emergencia y restablecer el control de tiempos ordinarios de Triage?';
+
+          if (!confirm(mensajeConfirm)) return;
+
           const res = await API.post('/configuracion/emergencia', { activo: nuevo });
           API.showToast(res.message, nuevo ? 'warning' : 'info');
           this.loadEmergencia();
