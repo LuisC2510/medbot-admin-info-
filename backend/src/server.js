@@ -7,6 +7,8 @@ const { Server } = require('socket.io');
 const { PORT } = require('./config');
 const db = require('./db');
 
+const { sanitizarEntradas } = require('./middleware/sanitize');
+
 const authRoutes = require('./routes/auth.routes');
 const pacientesRoutes = require('./routes/pacientes.routes');
 const ingresosRoutes = require('./routes/ingresos.routes');
@@ -28,10 +30,25 @@ const io = new Server(server, {
 // Guardar instancia de io en la app de Express para uso en rutas
 app.set('io', io);
 
+// Ocultar cabecera que delata Express
+app.disable('x-powered-by');
+
+// Cabeceras HTTP de seguridad (OWASP)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 // Middlewares globales
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Middleware de seguridad contra XSS (Sanitización automática de entradas)
+app.use(sanitizarEntradas);
 
 // Servir frontend estático
 const frontendPath = path.resolve(__dirname, '../../frontend');
