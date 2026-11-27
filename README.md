@@ -207,16 +207,16 @@ npm run reset-db
 
 ---
 
-## 🔑 Cuentas de Acceso de Prueba (Seed Data)
+## 🔑 Cuentas del Sistema y Política de Acceso
 
-Para facilitar la calificación y evaluación del sistema, la pantalla de inicio de sesión incluye botones de **Acceso Rápido por Rol** (con un solo clic), o puede ingresar manualmente con las siguientes credenciales:
+Por seguridad, las contraseñas iniciales de las cuentas semilla **no se publican en la documentación** y el sistema exige el **cambio obligatorio de contraseña en el primer ingreso** (mínimo 10 caracteres, mayúscula, minúscula, número y símbolo). Consulte [SECURITY.md](SECURITY.md) para el detalle de controles implementados.
 
-| Rol | Nombre de Prueba | Documento (Usuario) | Contraseña | Capacidades y Vistas |
-| :--- | :--- | :---: | :---: | :--- |
-| **Administrativo** | Jhonatan Alexander Gómez | `1001` | `Admin123!` | Admisión de pacientes, creación/búsqueda de pacientes, ingresos del turno. |
-| **Enfermero Jefe** | Enf. Marcela Zuluaga Osorio | `1002` | `Enfermero123!` | Cola de triage pendiente, registro de signos vitales, clasificación 1-5 e inicio de cronómetro. |
-| **Médico de Urgencias** | Dr. Alejandro Restrepo Ruiz | `1003` | `Medico123!` | Tablero en vivo, inicio de atención (detiene timer), reclasificación con motivo, definición de conducta y alta. |
-| **Administrador** | Dra. Claudia Patricia Rivas | `1000` | `Admin123!` | Acceso completo maestro, edición de tiempos III, IV y V, activación de Modo Emergencia, usuarios y auditoría. |
+| Rol | Nombre | Documento (Usuario) | Capacidades y Vistas |
+| :--- | :--- | :---: | :--- |
+| **Administrativo** | Jhonatan Alexander Gómez | `1001` | Admisión de pacientes, creación/búsqueda de pacientes, ingresos del turno. |
+| **Enfermero Jefe** | Enf. Marcela Zuluaga Osorio | `1002` | Cola de triage pendiente, registro de signos vitales, clasificación 1-5 e inicio de cronómetro. |
+| **Médico de Urgencias** | Dr. Alejandro Restrepo Ruiz | `1003` | Tablero en vivo, inicio de atención (detiene timer), reclasificación con motivo, definición de conducta y alta. |
+| **Administrador** | Dra. Claudia Patricia Rivas | `1000` | Acceso completo maestro, edición de tiempos III, IV y V, activación de Modo Emergencia, usuarios y auditoría. |
 
 ---
 

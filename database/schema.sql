@@ -14,6 +14,10 @@ CREATE TABLE IF NOT EXISTS usuarios (
     rol TEXT NOT NULL CHECK(rol IN ('ADMINISTRATIVO', 'ENFERMERO', 'MEDICO', 'ADMIN')),
     password_hash TEXT NOT NULL,
     activo INTEGER NOT NULL DEFAULT 1 CHECK(activo IN (0, 1)),
+    intentos_fallidos INTEGER NOT NULL DEFAULT 0,
+    bloqueado_hasta DATETIME,
+    debe_cambiar_password INTEGER NOT NULL DEFAULT 0 CHECK(debe_cambiar_password IN (0, 1)),
+    token_version INTEGER NOT NULL DEFAULT 1,
     creado_en DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
@@ -63,6 +67,7 @@ CREATE TABLE IF NOT EXISTS ingresos (
     acompanante TEXT,
     estado TEXT NOT NULL CHECK(estado IN ('EN_ESPERA_TRIAGE', 'CLASIFICADO', 'EN_ATENCION', 'CERRADO')) DEFAULT 'EN_ESPERA_TRIAGE',
     admisionado_por INTEGER NOT NULL REFERENCES usuarios(id),
+    medico_id INTEGER REFERENCES usuarios(id),
     fecha_inicio_atencion DATETIME,
     fecha_cierre DATETIME,
     creado_en DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
@@ -120,6 +125,19 @@ CREATE TABLE IF NOT EXISTS log_auditoria (
     ip TEXT,
     fecha DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
+
+-- Inmutabilidad del registro de auditoría (solo inserción permitida)
+CREATE TRIGGER IF NOT EXISTS prevent_audit_update
+BEFORE UPDATE ON log_auditoria
+BEGIN
+    SELECT RAISE(ABORT, 'Los registros de auditoría son inmutables y no pueden modificarse');
+END;
+
+CREATE TRIGGER IF NOT EXISTS prevent_audit_delete
+BEFORE DELETE ON log_auditoria
+BEGIN
+    SELECT RAISE(ABORT, 'Los registros de auditoría son inmutables y no pueden eliminarse');
+END;
 
 -- ============================================================================
 -- ÍNDICES DE RENDIMIENTO Y CONSULTA FRECUENTE

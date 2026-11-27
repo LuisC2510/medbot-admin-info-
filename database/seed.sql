@@ -17,16 +17,12 @@ INSERT OR REPLACE INTO configuracion (clave, valor, descripcion) VALUES
 ('nombre_institucion', 'Hospital Universitario Departamental - Cali', 'Nombre oficial de la institución prestadora de salud'),
 ('codigo_habilitacion', '760010000101', 'Código de habilitación en Registro Especial de Prestadores (REPS)');
 
--- 3. USUARIOS DEL SISTEMA POR ROL (Contraseñas cifradas con bcrypt)
--- Administrador: doc 1000, clave: Admin123!
--- Administrativo: doc 1001, clave: Admin123!
--- Enfermero Jefe: doc 1002, clave: Enfermero123!
--- Médico de Urgencias: doc 1003, clave: Medico123!
-INSERT OR REPLACE INTO usuarios (id, nombre, documento, rol, password_hash, activo) VALUES
-(1, 'Dra. Claudia Patricia Rivas', '1000', 'ADMIN', '$2b$10$nyLFYklo73Ssuy.bIy9vUec5pvOB6yM9k5vagXD3sIDB0xFpMUp/q', 1),
-(2, 'Jhonatan Alexander Gómez', '1001', 'ADMINISTRATIVO', '$2b$10$nyLFYklo73Ssuy.bIy9vUec5pvOB6yM9k5vagXD3sIDB0xFpMUp/q', 1),
-(3, 'Enf. Marcela Zuluaga Osorio', '1002', 'ENFERMERO', '$2b$10$6P0cMCbVl75TngPUHtIGrOTM5synf2MXi1BS96UFgqLM/OvKSx.om', 1),
-(4, 'Dr. Alejandro Restrepo Ruiz', '1003', 'MEDICO', '$2b$10$XtF1fmkPYtrF5DPosqBKh.haXj89RoBGXzMCk1HUjhSUqNoabpNra', 1);
+-- 3. USUARIOS DEL SISTEMA POR ROL (Contraseñas semilla con cambio obligatorio en primer ingreso)
+INSERT OR REPLACE INTO usuarios (id, nombre, documento, rol, password_hash, activo, debe_cambiar_password) VALUES
+(1, 'Dra. Claudia Patricia Rivas', '1000', 'ADMIN', '$2b$10$nyLFYklo73Ssuy.bIy9vUec5pvOB6yM9k5vagXD3sIDB0xFpMUp/q', 1, 1),
+(2, 'Jhonatan Alexander Gómez', '1001', 'ADMINISTRATIVO', '$2b$10$nyLFYklo73Ssuy.bIy9vUec5pvOB6yM9k5vagXD3sIDB0xFpMUp/q', 1, 1),
+(3, 'Enf. Marcela Zuluaga Osorio', '1002', 'ENFERMERO', '$2b$10$6P0cMCbVl75TngPUHtIGrOTM5synf2MXi1BS96UFgqLM/OvKSx.om', 1, 1),
+(4, 'Dr. Alejandro Restrepo Ruiz', '1003', 'MEDICO', '$2b$10$XtF1fmkPYtrF5DPosqBKh.haXj89RoBGXzMCk1HUjhSUqNoabpNra', 1, 1);
 
 -- 4. PACIENTES DE EJEMPLO
 INSERT OR REPLACE INTO pacientes (id, tipo_documento, numero_documento, nombres, apellidos, fecha_nacimiento, sexo, telefono, direccion, eps, acudiente_nombre, acudiente_telefono) VALUES

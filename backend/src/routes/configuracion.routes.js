@@ -1,35 +1,51 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const db = require('../db');
+const { BCRYPT_ROUNDS } = require('../config');
 const { authenticateToken, requireRole, registrarAuditoria } = require('../middleware/auth');
+const {
+  nivelUpdateSchema,
+  emergenciaSchema,
+  usuarioCreateSchema,
+  validateBody,
+  validateIdParam
+} = require('../middleware/validate');
 
 const router = express.Router();
 router.use(authenticateToken);
+
+const userCreationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes de creación de usuarios. Intente más tarde.' }
+});
 
 function getIo(req) {
   return req.app.get('io');
 }
 
-// GET /api/configuracion/niveles (Público autenticado)
-router.get('/niveles', (req, res) => {
-  const niveles = db.prepare('SELECT * FROM niveles_triage ORDER BY nivel ASC').all();
+// GET /api/configuracion/niveles
+router.get('/niveles', requireRole('ADMINISTRATIVO', 'ENFERMERO', 'MEDICO', 'ADMIN'), (req, res) => {
+  const niveles = db.prepare('SELECT nivel, nombre, color, codigo_color, minutos_max, descripcion, editable FROM niveles_triage ORDER BY nivel ASC').all();
   res.json(niveles);
 });
 
-// PUT /api/configuracion/niveles/:nivel (Editar tiempos de Triage III, IV o V - Admin)
-router.put('/niveles/:nivel', requireRole('ADMIN'), (req, res) => {
-  const nivel = parseInt(req.params.nivel, 10);
-  const { minutos_max } = req.body;
+// PUT /api/configuracion/niveles/:nivel (Solo Admin)
+router.put('/niveles/:nivel', requireRole('ADMIN'), validateIdParam('nivel'), validateBody(nivelUpdateSchema), (req, res) => {
+  const nivel = req.validatedParams.nivel;
+  const { minutos_max } = req.validatedBody;
+
+  if (nivel < 1 || nivel > 5) {
+    return res.status(404).json({ error: 'Nivel no encontrado.' });
+  }
 
   if (nivel === 1 || nivel === 2) {
     return res.status(400).json({
-      error: 'Según la Resolución 5596 de 2015, los tiempos de Triage I (Inmediato) y Triage II (máx 30 min) son de cumplimiento normativo estricto y no pueden ser modificados institucionalmente.'
+      error: 'Según la Resolución 5596 de 2015, los tiempos de Triage I y Triage II son de cumplimiento normativo estricto y no pueden modificarse.'
     });
-  }
-
-  const minutos = parseInt(minutos_max, 10);
-  if (!minutos || minutos <= 0) {
-    return res.status(400).json({ error: 'Los minutos máximos deben ser un entero positivo.' });
   }
 
   const row = db.prepare('SELECT * FROM niveles_triage WHERE nivel = ?').get(nivel);
@@ -38,37 +54,35 @@ router.put('/niveles/:nivel', requireRole('ADMIN'), (req, res) => {
   }
 
   try {
-    db.prepare('UPDATE niveles_triage SET minutos_max = ? WHERE nivel = ?').run(minutos, nivel);
+    db.prepare('UPDATE niveles_triage SET minutos_max = ? WHERE nivel = ?').run(minutos_max, nivel);
 
     registrarAuditoria(
       req.user.id,
       'MODIFICAR_TIEMPO_TRIAGE',
       'NIVELES_TRIAGE',
       nivel,
-      `Modificación de tiempo máximo para ${row.nombre}: de ${row.minutos_max} min a ${minutos} min`,
+      `Modificación de tiempo máximo para ${row.nombre}: de ${row.minutos_max} min a ${minutos_max} min`,
       req
     );
 
     const io = getIo(req);
     if (io) {
-      io.emit('config:niveles_actualizados', {
-        nivel,
-        minutos_max: minutos
-      });
+      io.emit('config:niveles_actualizados', { nivel, minutos_max });
     }
 
     res.json({
-      message: `Tiempo de espera para ${row.nombre} actualizado a ${minutos} minutos.`,
+      message: `Tiempo de espera para ${row.nombre} actualizado a ${minutos_max} minutos.`,
       nivel,
-      minutos_max: minutos
+      minutos_max
     });
   } catch (err) {
-    res.status(500).json({ error: 'Error al actualizar nivel: ' + err.message });
+    console.error('Error al actualizar nivel:', err);
+    res.status(500).json({ error: 'Error interno al actualizar nivel.' });
   }
 });
 
-// GET /api/configuracion/emergencia (Estado del Modo Emergencia)
-router.get('/emergencia', (req, res) => {
+// GET /api/configuracion/emergencia
+router.get('/emergencia', requireRole('ADMINISTRATIVO', 'ENFERMERO', 'MEDICO', 'ADMIN'), (req, res) => {
   const conf = db.prepare("SELECT valor, descripcion, actualizado_en FROM configuracion WHERE clave = 'modo_emergencia'").get();
   res.json({
     modo_emergencia: conf ? conf.valor === '1' : false,
@@ -77,9 +91,9 @@ router.get('/emergencia', (req, res) => {
   });
 });
 
-// POST /api/configuracion/emergencia (Activar/Desactivar Modo Desastre/Múltiples Víctimas - Admin o Médico)
-router.post('/emergencia', requireRole('ADMIN', 'MEDICO'), (req, res) => {
-  const { activo } = req.body;
+// POST /api/configuracion/emergencia (Solo Admin o Médico)
+router.post('/emergencia', requireRole('ADMIN', 'MEDICO'), validateBody(emergenciaSchema), (req, res) => {
+  const { activo } = req.validatedBody;
   const nuevoValor = activo ? '1' : '0';
 
   try {
@@ -94,7 +108,7 @@ router.post('/emergencia', requireRole('ADMIN', 'MEDICO'), (req, res) => {
       nuevoValor === '1' ? 'ACTIVAR_MODO_EMERGENCIA' : 'DESACTIVAR_MODO_EMERGENCIA',
       'CONFIGURACION',
       1,
-      `Modo Emergencia / Desastre con múltiples víctimas ${nuevoValor === '1' ? 'ACTIVADO' : 'DESACTIVADO'} por ${req.user.nombre}`,
+      `Modo Emergencia ${nuevoValor === '1' ? 'ACTIVADO' : 'DESACTIVADO'} por ${req.user.nombre}`,
       req
     );
 
@@ -112,42 +126,32 @@ router.post('/emergencia', requireRole('ADMIN', 'MEDICO'), (req, res) => {
       modo_emergencia: nuevoValor === '1'
     });
   } catch (err) {
-    res.status(500).json({ error: 'Error al cambiar modo de emergencia: ' + err.message });
+    console.error('Error al cambiar modo de emergencia:', err);
+    res.status(500).json({ error: 'Error interno al cambiar modo de emergencia.' });
   }
 });
 
 // GET /api/configuracion/usuarios (Solo Admin)
 router.get('/usuarios', requireRole('ADMIN'), (req, res) => {
-  const usuarios = db.prepare('SELECT id, nombre, documento, rol, activo, creado_en FROM usuarios ORDER BY id ASC').all();
+  const usuarios = db.prepare('SELECT id, nombre, documento, rol, activo, debe_cambiar_password, creado_en FROM usuarios ORDER BY id ASC').all();
   res.json(usuarios);
 });
 
-// POST /api/configuracion/usuarios (Crear usuario - Solo Admin)
-router.post('/usuarios', requireRole('ADMIN'), (req, res) => {
-  const { nombre, documento, rol, password } = req.body;
+// POST /api/configuracion/usuarios (Solo Admin)
+router.post('/usuarios', requireRole('ADMIN'), userCreationLimiter, validateBody(usuarioCreateSchema), (req, res) => {
+  const { nombre, documento, rol, password } = req.validatedBody;
 
-  if (!nombre || !documento || !rol || !password) {
-    return res.status(400).json({ error: 'Todos los campos son obligatorios (nombre, documento, rol, password).' });
-  }
-
-  const rolesPermitidos = ['ADMINISTRATIVO', 'ENFERMERO', 'MEDICO', 'ADMIN'];
-  if (!rolesPermitidos.includes(rol)) {
-    return res.status(400).json({ error: `Rol no válido. Permitidos: ${rolesPermitidos.join(', ')}` });
-  }
-
-  const existing = db.prepare('SELECT id FROM usuarios WHERE documento = ?').get(String(documento).trim());
+  const existing = db.prepare('SELECT id FROM usuarios WHERE documento = ?').get(documento);
   if (existing) {
     return res.status(409).json({ error: 'Ya existe un usuario con ese documento.' });
   }
 
   try {
-    const password_hash = bcrypt.hashSync(password, 10);
-    const stmt = db.prepare(`
-      INSERT INTO usuarios (nombre, documento, rol, password_hash, activo)
-      VALUES (?, ?, ?, ?, 1)
-    `);
-
-    const result = stmt.run(nombre.trim(), String(documento).trim(), rol, password_hash);
+    const password_hash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
+    const result = db.prepare(`
+      INSERT INTO usuarios (nombre, documento, rol, password_hash, activo, debe_cambiar_password)
+      VALUES (?, ?, ?, ?, 1, 1)
+    `).run(nombre, documento, rol, password_hash);
 
     registrarAuditoria(
       req.user.id,
@@ -160,20 +164,23 @@ router.post('/usuarios', requireRole('ADMIN'), (req, res) => {
 
     res.status(201).json({
       id: result.lastInsertRowid,
-      nombre: nombre.trim(),
-      documento: String(documento).trim(),
+      nombre,
+      documento,
       rol,
-      activo: 1
+      activo: 1,
+      debe_cambiar_password: 1
     });
   } catch (err) {
-    res.status(500).json({ error: 'Error al crear usuario: ' + err.message });
+    console.error('Error al crear usuario:', err);
+    res.status(500).json({ error: 'Error interno al crear usuario.' });
   }
 });
 
 // GET /api/configuracion/auditoria (Solo Admin)
 router.get('/auditoria', requireRole('ADMIN'), (req, res) => {
   const logs = db.prepare(`
-    SELECT la.*, u.nombre as usuario_nombre, u.rol as usuario_rol
+    SELECT la.id, la.usuario_id, la.accion, la.entidad, la.entidad_id, la.detalles, la.ip, la.fecha,
+           u.nombre as usuario_nombre, u.rol as usuario_rol
     FROM log_auditoria la
     LEFT JOIN usuarios u ON u.id = la.usuario_id
     ORDER BY la.id DESC LIMIT 200
@@ -183,4 +190,3 @@ router.get('/auditoria', requireRole('ADMIN'), (req, res) => {
 });
 
 module.exports = router;
-

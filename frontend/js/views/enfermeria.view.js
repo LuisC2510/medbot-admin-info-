@@ -74,11 +74,11 @@ const EnfermeriaView = {
             <div class="space-y-1.5 flex-1">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                  ${ing.consecutivo}
+                  ${App.escapeHtml(ing.consecutivo)}
                 </span>
-                <h3 class="text-base font-bold text-slate-900">${ing.nombres} ${ing.apellidos}</h3>
+                <h3 class="text-base font-bold text-slate-900">${App.escapeHtml(ing.nombres)} ${App.escapeHtml(ing.apellidos)}</h3>
                 <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                  ${ing.tipo_documento} ${ing.numero_documento}
+                  ${App.escapeHtml(ing.tipo_documento)} ${App.escapeHtml(ing.numero_documento)}
                 </span>
                 <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${esperaMin > 20 ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'}">
                   Espera valoración: ${esperaMin} min
@@ -87,13 +87,13 @@ const EnfermeriaView = {
 
               <div class="text-xs text-slate-500 flex flex-wrap items-center gap-3">
                 <span><strong>Edad/Sexo:</strong> ${edad} años • ${ing.sexo === 'M' ? 'Masculino' : 'Femenino'}</span>
-                <span><strong>EPS:</strong> ${ing.eps}</span>
-                <span><strong>Hora Llegada:</strong> ${ing.fecha_llegada ? ing.fecha_llegada.substring(11, 16) : ''}</span>
-                <span><strong>Acompañante:</strong> ${ing.acompanante || 'Ninguno'}</span>
+                <span><strong>EPS:</strong> ${App.escapeHtml(ing.eps)}</span>
+                <span><strong>Hora Llegada:</strong> ${App.escapeHtml(ing.fecha_llegada ? ing.fecha_llegada.substring(11, 16) : '')}</span>
+                <span><strong>Acompañante:</strong> ${App.escapeHtml(ing.acompanante || 'Ninguno')}</span>
               </div>
 
               <div class="text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 text-slate-800">
-                <strong>Motivo de Ingreso:</strong> ${ing.motivo_consulta}
+                <strong>Motivo de Ingreso:</strong> ${App.escapeHtml(ing.motivo_consulta)}
               </div>
             </div>
 
@@ -122,11 +122,11 @@ const EnfermeriaView = {
           <div class="flex items-center justify-between pb-4 border-b border-slate-100">
             <div>
               <div class="flex items-center gap-2">
-                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">${ing.consecutivo}</span>
+                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">${App.escapeHtml(ing.consecutivo)}</span>
                 <h2 class="text-xl font-bold text-slate-800">Valoración Clínica de Triage</h2>
               </div>
               <p class="text-xs text-slate-500 mt-0.5">
-                Paciente: <strong>${ing.nombres} ${ing.apellidos}</strong> (${ing.tipo_documento} ${ing.numero_documento}) • EPS: ${ing.eps}
+                Paciente: <strong>${App.escapeHtml(ing.nombres)} ${App.escapeHtml(ing.apellidos)}</strong> (${App.escapeHtml(ing.tipo_documento)} ${App.escapeHtml(ing.numero_documento)}) • EPS: ${App.escapeHtml(ing.eps)}
               </p>
             </div>
             <button onclick="App.cerrarModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>

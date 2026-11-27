@@ -121,19 +121,19 @@ const PacientesView = {
         return `
           <tr class="hover:bg-slate-50/80 transition-colors">
             <td class="px-4 py-3 font-medium text-slate-900 text-xs">
-              <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold mr-1.5">${p.tipo_documento}</span>
-              ${p.numero_documento}
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold mr-1.5">${App.escapeHtml(p.tipo_documento)}</span>
+              ${App.escapeHtml(p.numero_documento)}
             </td>
-            <td class="px-4 py-3 font-semibold text-slate-800">${p.nombres} ${p.apellidos}</td>
+            <td class="px-4 py-3 font-semibold text-slate-800">${App.escapeHtml(p.nombres)} ${App.escapeHtml(p.apellidos)}</td>
             <td class="px-4 py-3 text-xs text-slate-600">${edad} años • ${sexoTxt}</td>
-            <td class="px-4 py-3 text-xs font-medium text-slate-700">${p.eps}</td>
-            <td class="px-4 py-3 text-xs text-slate-600">${p.telefono || '<span class="text-slate-300">--</span>'}</td>
-            <td class="px-4 py-3 text-xs text-slate-600">${p.acudiente_nombre ? `${p.acudiente_nombre} (${p.acudiente_telefono || ''})` : '<span class="text-slate-300">Ninguno</span>'}</td>
+            <td class="px-4 py-3 text-xs font-medium text-slate-700">${App.escapeHtml(p.eps)}</td>
+            <td class="px-4 py-3 text-xs text-slate-600">${p.telefono ? App.escapeHtml(p.telefono) : '<span class="text-slate-300">--</span>'}</td>
+            <td class="px-4 py-3 text-xs text-slate-600">${p.acudiente_nombre ? `${App.escapeHtml(p.acudiente_nombre)} (${App.escapeHtml(p.acudiente_telefono || '')})` : '<span class="text-slate-300">Ninguno</span>'}</td>
             <td class="px-4 py-3 text-right space-x-2">
-              <button onclick="App.verFichaPaciente(${p.id})" class="px-2.5 py-1 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded">
+              <button onclick="App.verFichaPaciente(${Number(p.id)})" class="px-2.5 py-1 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded">
                 Ver Ficha
               </button>
-              <button onclick="PacientesView.editarPaciente(${p.id})" class="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded">
+              <button onclick="PacientesView.editarPaciente(${Number(p.id)})" class="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded">
                 Editar
               </button>
             </td>

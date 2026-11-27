@@ -6,9 +6,15 @@ const RealtimeSync = {
   fallbackInterval: null,
 
   init(onDataChange) {
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
+
     if (typeof io !== 'undefined') {
       try {
         this.socket = io({
+          withCredentials: true,
           reconnection: true,
           reconnectionAttempts: 10,
           reconnectionDelay: 2000
@@ -24,7 +30,11 @@ const RealtimeSync = {
           this.updateConnectionBadge(false);
         });
 
-        // Escuchar eventos clínicos
+        this.socket.on('connect_error', () => {
+          this.connected = false;
+          this.updateConnectionBadge(false);
+        });
+
         const eventos = [
           'ingreso:creado',
           'triage:clasificado',
@@ -34,13 +44,12 @@ const RealtimeSync = {
           'config:niveles_actualizados'
         ];
 
-        eventos.forEach(evt => {
+        eventos.forEach((evt) => {
           this.socket.on(evt, (data) => {
             if (onDataChange) onDataChange(evt, data);
           });
         });
 
-        // Evento de Modo Emergencia
         this.socket.on('emergencia:toggle', (data) => {
           if (window.App && window.App.setEmergencyModeBanner) {
             window.App.setEmergencyModeBanner(data.activo);
@@ -52,13 +61,10 @@ const RealtimeSync = {
           }
           if (onDataChange) onDataChange('emergencia:toggle', data);
         });
-
       } catch (err) {
-        console.warn('Socket.IO no disponible, activando modo polling.', err);
         this.startPollingFallback(onDataChange);
       }
     } else {
-      console.log('Socket.IO client no detectado, activando polling.');
       this.startPollingFallback(onDataChange);
     }
   },
@@ -67,20 +73,28 @@ const RealtimeSync = {
     if (this.fallbackInterval) clearInterval(this.fallbackInterval);
     this.fallbackInterval = setInterval(() => {
       if (onDataChange) onDataChange('polling:tick', null);
-    }, 10000); // Polling cada 10s como respaldo
+    }, 10000);
   },
 
   updateConnectionBadge(isOnline) {
     const badge = document.getElementById('socket-status-badge');
     if (!badge) return;
 
+    badge.replaceChildren();
+    const dot = document.createElement('span');
+    const label = document.createElement('span');
+
     if (isOnline) {
       badge.className = 'flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200';
-      badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>En Vivo (Sincronizado)</span>';
+      dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+      label.textContent = 'En Vivo (Sincronizado)';
     } else {
       badge.className = 'flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200';
-      badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Reconectando...</span>';
+      dot.className = 'w-2 h-2 rounded-full bg-slate-400';
+      label.textContent = 'Reconectando...';
     }
+
+    badge.appendChild(dot);
+    badge.appendChild(label);
   }
 };
-

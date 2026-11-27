@@ -301,29 +301,29 @@ const TableroView = {
                 <div class="space-y-1">
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                      ${p.consecutivo}
+                      ${App.escapeHtml(p.consecutivo)}
                     </span>
-                    <h3 class="text-lg font-bold text-slate-900">${p.nombres} ${p.apellidos}</h3>
+                    <h3 class="text-lg font-bold text-slate-900">${App.escapeHtml(p.nombres)} ${App.escapeHtml(p.apellidos)}</h3>
                     <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                      ${p.tipo_documento} ${p.numero_documento}
+                      ${App.escapeHtml(p.tipo_documento)} ${App.escapeHtml(p.numero_documento)}
                     </span>
                     ${p.total_reclasificaciones > 0 ? `
-                      <button onclick="App.verHistorialReclasificaciones(${p.ingreso_id})" class="text-xs font-medium px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 flex items-center gap-1">
-                        <i data-lucide="history" class="w-3 h-3"></i> Reclasificado (${p.total_reclasificaciones})
+                      <button onclick="App.verHistorialReclasificaciones(${Number(p.ingreso_id)})" class="text-xs font-medium px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 flex items-center gap-1">
+                        <i data-lucide="history" class="w-3 h-3"></i> Reclasificado (${Number(p.total_reclasificaciones)})
                       </button>
                     ` : ''}
                   </div>
 
                   <div class="text-xs text-slate-500 flex flex-wrap items-center gap-3">
                     <span><strong>Edad/Sexo:</strong> ${edadTexto || 'N/A'} • ${p.sexo === 'M' ? 'Masculino' : (p.sexo === 'F' ? 'Femenino' : 'Otro')}</span>
-                    <span><strong>EPS:</strong> ${p.eps}</span>
-                    <span><strong>Llegada:</strong> ${p.fecha_llegada ? p.fecha_llegada.substring(11, 16) : ''}</span>
-                    <span><strong>Clasificado por:</strong> ${p.clasificado_por_nombre || 'Enfermería'}</span>
+                    <span><strong>EPS:</strong> ${App.escapeHtml(p.eps)}</span>
+                    <span><strong>Llegada:</strong> ${App.escapeHtml(p.fecha_llegada ? p.fecha_llegada.substring(11, 16) : '')}</span>
+                    <span><strong>Clasificado por:</strong> ${App.escapeHtml(p.clasificado_por_nombre || 'Enfermería')}</span>
                   </div>
 
                   <div class="mt-2 text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
-                    <p><strong>Motivo de Consulta:</strong> ${p.motivo_consulta}</p>
-                    <p class="mt-1 text-slate-600"><strong>Observación Triage:</strong> ${p.triage_observaciones}</p>
+                    <p><strong>Motivo de Consulta:</strong> ${App.escapeHtml(p.motivo_consulta)}</p>
+                    <p class="mt-1 text-slate-600"><strong>Observación Triage:</strong> ${App.escapeHtml(p.triage_observaciones)}</p>
                   </div>
                 </div>
               </div>
@@ -372,7 +372,7 @@ const TableroView = {
                 <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">Temp: <strong>${p.temperatura ? `${p.temperatura}°C` : '--'}</strong></span>
                 <span class="px-2 py-0.5 rounded ${p.spo2 && p.spo2 < 92 ? 'bg-red-100 text-red-700 font-bold' : 'bg-slate-100 text-slate-700 font-medium'}">SpO2: <strong>${p.spo2 ? `${p.spo2}%` : '--'}</strong></span>
                 <span class="px-2 py-0.5 rounded ${p.dolor >= 8 ? 'bg-orange-100 text-orange-800 font-bold' : 'bg-slate-100 text-slate-700 font-medium'}">Dolor EVA: <strong>${p.dolor !== null ? `${p.dolor}/10` : '--'}</strong></span>
-                <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">Conciencia: <strong>${p.estado_conciencia || 'Alerta'}</strong></span>
+                <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">Conciencia: <strong>${App.escapeHtml(p.estado_conciencia || 'Alerta')}</strong></span>
               </div>
 
               <!-- Botones de Acción Contextual por Rol -->

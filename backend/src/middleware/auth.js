@@ -1,85 +1,142 @@
 // ============================================================
 // ARCHIVO: auth.js
-// OBJETIVO: Middlewares para proteger las rutas con JWT y roles
+// OBJETIVO: Middlewares para proteger las rutas con JWT (HS256) y roles
 // ============================================================
 
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../config');
+const { JWT_SECRET, JWT_ALGORITHM } = require('../config');
 const db = require('../db');
+
+const AUTH_COOKIE_NAME = 'medbot_token';
+
+function extractTokenFromRequest(req) {
+  if (req.cookies && typeof req.cookies[AUTH_COOKIE_NAME] === 'string') {
+    return req.cookies[AUTH_COOKIE_NAME];
+  }
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  return null;
+}
+
+function verifyTokenAndLoadUser(token) {
+  const decoded = jwt.verify(token, JWT_SECRET, {
+    algorithms: [JWT_ALGORITHM]
+  });
+
+  if (!decoded || typeof decoded.id !== 'number' || typeof decoded.tv !== 'number') {
+    return null;
+  }
+
+  const usuario = db.prepare(`
+    SELECT id, nombre, documento, rol, activo, debe_cambiar_password, token_version
+    FROM usuarios
+    WHERE id = ?
+  `).get(decoded.id);
+
+  if (!usuario || usuario.activo !== 1 || usuario.token_version !== decoded.tv) {
+    return null;
+  }
+
+  return {
+    id: usuario.id,
+    nombre: usuario.nombre,
+    documento: usuario.documento,
+    rol: usuario.rol,
+    activo: usuario.activo,
+    debe_cambiar_password: usuario.debe_cambiar_password === 1
+  };
+}
 
 // 1. REVISAR SI EL USUARIO ESTÁ LOGUEADO (TIENE TOKEN VÁLIDO)
 function authenticateToken(req, res, next) {
-  // El token viene en el header "Authorization: Bearer <token>"
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = extractTokenFromRequest(req);
 
-  // Si no mandaron ningún token, no puede entrar
   if (!token) {
-    return res.status(401).json({ error: 'No has iniciado sesión. Por favor ingresa.' });
+    return res.status(401).json({ error: 'No autorizado. Debe iniciar sesión.' });
   }
 
-  // Verificamos si el token es válido y no ha vencido
-  jwt.verify(token, JWT_SECRET, (error, datosDecodificados) => {
-    if (error) {
-      // Si el token venció o es inválido, respondemos 401
-      return res.status(401).json({ error: 'Tu sesión ha expirado. Por favor ingresa de nuevo.' });
+  try {
+    const usuario = verifyTokenAndLoadUser(token);
+    if (!usuario) {
+      return res.status(401).json({ error: 'Sesión inválida o expirada.' });
     }
 
-    // Buscamos al usuario en la base de datos para confirmar que siga activo
-    const usuario = db.prepare('SELECT id, nombre, documento, rol, activo FROM usuarios WHERE id = ?').get(datosDecodificados.id);
-
-    if (!usuario || usuario.activo !== 1) {
-      return res.status(401).json({ error: 'Usuario no encontrado o inactivo.' });
-    }
-
-    // Guardamos los datos del usuario en la petición para usarlo en las siguientes rutas
     req.user = usuario;
+
+    // Si el usuario tiene contraseña semilla sin cambiar, solo permitir rutas de auth/cambio de clave
+    const rutasPermitidasCambioClave = [
+      '/api/auth/cambiar-password',
+      '/api/auth/logout',
+      '/api/auth/me',
+      '/api/auth/csrf-token'
+    ];
+
+    if (usuario.debe_cambiar_password && !rutasPermitidasCambioClave.includes(req.originalUrl.split('?')[0])) {
+      return res.status(403).json({
+        error: 'Debe cambiar su contraseña inicial antes de acceder al sistema.',
+        code: 'PASSWORD_CHANGE_REQUIRED'
+      });
+    }
+
     next();
-  });
+  } catch (err) {
+    return res.status(401).json({ error: 'Sesión inválida o expirada.' });
+  }
 }
 
 // 2. REVISAR SI EL USUARIO TIENE EL ROL NECESARIO
-// Por ejemplo: requireRole('MEDICO') o requireRole('ADMINISTRATIVO')
 function requireRole(...rolesPermitidos) {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'No estás autenticado.' });
+      return res.status(401).json({ error: 'No autorizado.' });
     }
 
-    // El ADMIN siempre tiene permiso para todo
     if (req.user.rol === 'ADMIN' || rolesPermitidos.includes(req.user.rol)) {
       return next();
     }
 
-    // Si no tiene el rol, le negamos el acceso con 403 (Prohibido)
+    registrarAuditoria(
+      req.user.id,
+      'ACCESO_DENEGADO',
+      'SEGURIDAD',
+      null,
+      `Rol ${req.user.rol} intentó acceder a ${req.method} ${req.originalUrl}`,
+      req
+    );
+
     return res.status(403).json({
-      error: `Acceso denegado. Se necesita el rol: ${rolesPermitidos.join(' o ')}.`
+      error: 'Acceso denegado.'
     });
   };
 }
 
-// 3. REGISTRAR ACCIONES EN LA TABLA DE AUDITORÍA
+// 3. REGISTRAR ACCIONES EN LA TABLA DE AUDITORÍA (INMUTABLE)
 function registrarAuditoria(usuarioId, accion, entidad, entidadId, detalles, req) {
   try {
-    const ip = req ? (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1') : '127.0.0.1';
-    
+    const ip = req ? (req.ip || req.socket?.remoteAddress || '127.0.0.1') : '127.0.0.1';
+
     db.prepare(`
       INSERT INTO log_auditoria (usuario_id, accion, entidad, entidad_id, detalles, ip)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
-      usuarioId,
+      usuarioId || null,
       accion,
       entidad,
-      entidadId,
-      typeof detalles === 'object' ? JSON.stringify(detalles) : detalles,
+      entidadId || null,
+      typeof detalles === 'object' ? JSON.stringify(detalles) : String(detalles || ''),
       ip
     );
   } catch (err) {
-    console.log('Aviso: No se pudo registrar auditoría:', err.message);
+    console.error('Aviso: No se pudo registrar auditoría:', err.message);
   }
 }
 
 module.exports = {
+  AUTH_COOKIE_NAME,
+  extractTokenFromRequest,
+  verifyTokenAndLoadUser,
   authenticateToken,
   requireRole,
   registrarAuditoria

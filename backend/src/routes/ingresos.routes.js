@@ -1,48 +1,38 @@
 const express = require('express');
 const db = require('../db');
 const { authenticateToken, requireRole, registrarAuditoria } = require('../middleware/auth');
+const { ingresoCreateSchema, validateBody, validateIdParam } = require('../middleware/validate');
 
 const router = express.Router();
 router.use(authenticateToken);
 
-// Helper para obtener la instancia de socket.io desde app
 function getIo(req) {
   return req.app.get('io');
 }
 
-// POST /api/ingresos (Admisión - Solo Administrativo o Admin)
-router.post('/', requireRole('ADMINISTRATIVO', 'ADMIN'), (req, res) => {
-  const { paciente_id, motivo_consulta, acompanante } = req.body;
-
-  if (!paciente_id) {
-    return res.status(400).json({ error: 'Debe especificar el paciente.' });
-  }
-
-  if (!motivo_consulta || motivo_consulta.trim().length === 0) {
-    return res.status(400).json({ error: 'El motivo de consulta es obligatorio.' });
-  }
+// POST /api/ingresos (Solo Administrativo o Admin)
+router.post('/', requireRole('ADMINISTRATIVO', 'ADMIN'), validateBody(ingresoCreateSchema), (req, res) => {
+  const { paciente_id, motivo_consulta, acompanante } = req.validatedBody;
 
   const paciente = db.prepare('SELECT id, nombres, apellidos, tipo_documento, numero_documento FROM pacientes WHERE id = ?').get(paciente_id);
   if (!paciente) {
     return res.status(404).json({ error: 'Paciente no encontrado.' });
   }
 
-  // Verificar si ya tiene un ingreso activo abierto (no cerrado)
   const activo = db.prepare(`
-    SELECT id, consecutivo, estado FROM ingresos 
+    SELECT id, consecutivo, estado FROM ingresos
     WHERE paciente_id = ? AND estado != 'CERRADO'
   `).get(paciente_id);
 
   if (activo) {
     return res.status(409).json({
-      error: `El paciente ya tiene un ingreso de urgencias en curso (${activo.consecutivo}) con estado: ${activo.estado}. Debe cerrarse antes de crear uno nuevo.`
+      error: `El paciente ya tiene un ingreso activo (${activo.consecutivo}) en estado ${activo.estado}.`
     });
   }
 
   try {
-    // Generar consecutivo anual correlativo: URG-YYYY-XXXX
     const currentYear = new Date().getFullYear();
-    const countRow = db.prepare("SELECT COUNT(*) as total FROM ingresos WHERE consecutivo LIKE ?").get(`URG-${currentYear}-%`);
+    const countRow = db.prepare('SELECT COUNT(*) as total FROM ingresos WHERE consecutivo LIKE ?').get(`URG-${currentYear}-%`);
     const nextNumber = String(countRow.total + 1).padStart(4, '0');
     const consecutivo = `URG-${currentYear}-${nextNumber}`;
 
@@ -54,13 +44,13 @@ router.post('/', requireRole('ADMINISTRATIVO', 'ADMIN'), (req, res) => {
     const result = stmt.run(
       consecutivo,
       paciente_id,
-      motivo_consulta.trim(),
-      acompanante ? acompanante.trim() : null,
+      motivo_consulta,
+      acompanante,
       req.user.id
     );
 
     const nuevoIngreso = db.prepare(`
-      SELECT i.*, 
+      SELECT i.id, i.consecutivo, i.paciente_id, i.fecha_llegada, i.motivo_consulta, i.acompanante, i.estado,
              p.nombres, p.apellidos, p.tipo_documento, p.numero_documento, p.fecha_nacimiento, p.sexo, p.eps,
              u.nombre as admisionado_por_nombre
       FROM ingresos i
@@ -69,9 +59,8 @@ router.post('/', requireRole('ADMINISTRATIVO', 'ADMIN'), (req, res) => {
       WHERE i.id = ?
     `).get(result.lastInsertRowid);
 
-    registrarAuditoria(req.user.id, 'CREAR_INGRESO', 'INGRESOS', nuevoIngreso.id, `Admisión de urgencias creada: ${consecutivo} para ${paciente.nombres} ${paciente.apellidos}`, req);
+    registrarAuditoria(req.user.id, 'CREAR_INGRESO', 'INGRESOS', nuevoIngreso.id, `Admisión creada: ${consecutivo}`, req);
 
-    // Notificar por WebSocket a toda la central
     const io = getIo(req);
     if (io) {
       io.emit('ingreso:creado', nuevoIngreso);
@@ -79,17 +68,18 @@ router.post('/', requireRole('ADMINISTRATIVO', 'ADMIN'), (req, res) => {
 
     res.status(201).json(nuevoIngreso);
   } catch (err) {
-    res.status(500).json({ error: 'Error al registrar ingreso: ' + err.message });
+    console.error('Error al registrar ingreso:', err);
+    res.status(500).json({ error: 'Error interno al registrar ingreso.' });
   }
 });
 
-// GET /api/ingresos/hoy (Listado de admisiones del día - Para Administrativo/Médico/Admin)
-router.get('/hoy', (req, res) => {
+// GET /api/ingresos/hoy
+router.get('/hoy', requireRole('ADMINISTRATIVO', 'ENFERMERO', 'MEDICO', 'ADMIN'), (req, res) => {
   const ingresos = db.prepare(`
-    SELECT i.*, 
+    SELECT i.id, i.consecutivo, i.paciente_id, i.fecha_llegada, i.motivo_consulta, i.estado,
            p.nombres, p.apellidos, p.tipo_documento, p.numero_documento, p.sexo, p.fecha_nacimiento, p.eps,
-           t.nivel as triage_nivel, 
-           nt.nombre as triage_nombre, 
+           t.nivel as triage_nivel,
+           nt.nombre as triage_nombre,
            nt.codigo_color as triage_color,
            u.nombre as admisionado_por_nombre
     FROM ingresos i
@@ -104,10 +94,10 @@ router.get('/hoy', (req, res) => {
   res.json(ingresos);
 });
 
-// GET /api/ingresos/cola-triage (Pacientes pendientes de valoración de triage - Enfermero Jefe)
-router.get('/cola-triage', (req, res) => {
+// GET /api/ingresos/cola-triage (Enfermero, Médico o Admin)
+router.get('/cola-triage', requireRole('ENFERMERO', 'MEDICO', 'ADMIN'), (req, res) => {
   const cola = db.prepare(`
-    SELECT i.*, 
+    SELECT i.id, i.consecutivo, i.paciente_id, i.fecha_llegada, i.motivo_consulta, i.acompanante, i.estado,
            p.nombres, p.apellidos, p.tipo_documento, p.numero_documento, p.fecha_nacimiento, p.sexo, p.eps, p.telefono,
            u.nombre as admisionado_por_nombre,
            CAST((julianday('now', 'localtime') - julianday(i.fecha_llegada)) * 24 * 60 AS INTEGER) as minutos_espera_triage
@@ -121,13 +111,11 @@ router.get('/cola-triage', (req, res) => {
   res.json(cola);
 });
 
-// GET /api/ingresos/tablero (TABLERO DE URGENCIAS EN TIEMPO REAL - Pieza central)
-router.get('/tablero', (req, res) => {
-  // Consultar modo emergencia
+// GET /api/ingresos/tablero
+router.get('/tablero', requireRole('ADMINISTRATIVO', 'ENFERMERO', 'MEDICO', 'ADMIN'), (req, res) => {
   const confEmergencia = db.prepare("SELECT valor FROM configuracion WHERE clave = 'modo_emergencia'").get();
   const modoEmergencia = confEmergencia && confEmergencia.valor === '1';
 
-  // Pacientes en espera médica o en atención actual
   const filas = db.prepare(`
     SELECT i.id as ingreso_id,
            i.consecutivo,
@@ -154,14 +142,12 @@ router.get('/tablero', (req, res) => {
            t.fecha_clasificacion,
            u_enf.nombre as clasificado_por_nombre,
            u_med.nombre as atendido_por_nombre,
-           -- Cálculo de segundos transcurridos desde clasificación en SQLite
            CAST(
              (
-               julianday(COALESCE(i.fecha_inicio_atencion, 'now', 'localtime')) - 
+               julianday(COALESCE(i.fecha_inicio_atencion, 'now', 'localtime')) -
                julianday(t.fecha_clasificacion)
              ) * 86400 AS INTEGER
            ) as segundos_transcurridos,
-           -- Total de reclasificaciones que ha tenido
            (SELECT COUNT(*) FROM historial_reclasificaciones hr WHERE hr.ingreso_id = i.id) as total_reclasificaciones
     FROM ingresos i
     JOIN pacientes p ON p.id = i.paciente_id
@@ -171,18 +157,15 @@ router.get('/tablero', (req, res) => {
     LEFT JOIN conductas c ON c.ingreso_id = i.id
     LEFT JOIN usuarios u_med ON u_med.id = c.medico_id
     WHERE i.estado IN ('CLASIFICADO', 'EN_ATENCION')
-    ORDER BY 
-      -- Prioridad 1: Nivel de Triage (I, II, III, IV, V)
+    ORDER BY
       t.nivel ASC,
-      -- Prioridad 2: En el mismo nivel, quien lleva más tiempo esperando (FIFO)
       t.fecha_clasificacion ASC
   `).all();
 
-  // Enriquecer con cálculo de porcentaje y alerta
-  const items = filas.map(item => {
+  const items = filas.map((item) => {
     const segundos = Math.max(0, item.segundos_transcurridos || 0);
     const maxSegundos = (item.triage_minutos_max || 0) * 60;
-    
+
     let alerta = 'NORMAL';
     let porcentaje = 0;
 
@@ -215,17 +198,20 @@ router.get('/tablero', (req, res) => {
   });
 });
 
-// GET /api/ingresos/:id (Detalle completo de un ingreso)
-router.get('/:id', (req, res) => {
+// GET /api/ingresos/:id
+router.get('/:id', requireRole('ADMINISTRATIVO', 'ENFERMERO', 'MEDICO', 'ADMIN'), validateIdParam('id'), (req, res) => {
+  const ingresoId = req.validatedParams.id;
+
   const ingreso = db.prepare(`
-    SELECT i.*, 
+    SELECT i.id, i.consecutivo, i.paciente_id, i.fecha_llegada, i.motivo_consulta, i.acompanante, i.estado,
+           i.fecha_inicio_atencion, i.fecha_cierre,
            p.nombres, p.apellidos, p.tipo_documento, p.numero_documento, p.fecha_nacimiento, p.sexo, p.eps, p.telefono, p.direccion,
            u_adm.nombre as admisionado_por_nombre
     FROM ingresos i
     JOIN pacientes p ON p.id = i.paciente_id
     JOIN usuarios u_adm ON u_adm.id = i.admisionado_por
     WHERE i.id = ?
-  `).get(req.params.id);
+  `).get(ingresoId);
 
   if (!ingreso) {
     return res.status(404).json({ error: 'Ingreso no encontrado.' });
@@ -241,7 +227,7 @@ router.get('/:id', (req, res) => {
   `).get(ingreso.id);
 
   const reclasificaciones = db.prepare(`
-    SELECT hr.*, 
+    SELECT hr.*,
            nt_ant.nombre as nivel_anterior_nombre, nt_ant.codigo_color as color_anterior,
            nt_nue.nombre as nivel_nuevo_nombre, nt_nue.codigo_color as color_nuevo,
            u.nombre as reclasificado_por_nombre
@@ -269,4 +255,3 @@ router.get('/:id', (req, res) => {
 });
 
 module.exports = router;
-

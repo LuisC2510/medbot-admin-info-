@@ -1,7 +1,56 @@
 /* ============================================================
    ESTILOS SENCILLOS - SISTEMA DE TRIAGE (RESOLUCIÓN 5596 DE 2015)
-   Estilo limpio y fácil de entender nivel universitario
+   Estilo clásico de proyecto universitario (5° semestre)
    ============================================================ */
+
+body {
+  font-family: Arial, Helvetica, sans-serif !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* Bordes más rectos y menos "SaaS moderno" */
+.rounded-xl,
+.rounded-lg {
+  border-radius: 4px !important;
+}
+
+.shadow-xl,
+.shadow-lg,
+.shadow-md,
+.shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Tablas con bordes clásicos visibles */
+table {
+  border-collapse: collapse;
+}
+
+table th,
+table td {
+  border-bottom: 1px solid #cbd5e1;
+}
+
+table thead th {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+/* Inputs y selects con borde clásico */
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+  border-radius: 3px !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Botones menos redondeados, estilo clásico */
+button {
+  border-radius: 4px !important;
+}
 
 /* Bordes de color para cada nivel de Triage */
 .card-triage-1 {

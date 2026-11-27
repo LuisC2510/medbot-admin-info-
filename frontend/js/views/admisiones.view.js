@@ -114,16 +114,16 @@ const AdmisionesView = {
 
         return `
           <tr class="hover:bg-slate-50/80 transition-colors">
-            <td class="px-4 py-3 font-mono font-bold text-slate-800 text-xs">${ing.consecutivo}</td>
-            <td class="px-4 py-3 text-xs text-slate-600">${ing.fecha_llegada ? ing.fecha_llegada.substring(11, 16) : ''}</td>
-            <td class="px-4 py-3 text-xs font-medium text-slate-800">${ing.tipo_documento} ${ing.numero_documento}</td>
-            <td class="px-4 py-3 font-medium text-slate-900">${ing.nombres} ${ing.apellidos}</td>
-            <td class="px-4 py-3 text-xs text-slate-600">${ing.eps}</td>
-            <td class="px-4 py-3 text-xs text-slate-700 max-w-xs truncate" title="${ing.motivo_consulta}">${ing.motivo_consulta}</td>
+            <td class="px-4 py-3 font-mono font-bold text-slate-800 text-xs">${App.escapeHtml(ing.consecutivo)}</td>
+            <td class="px-4 py-3 text-xs text-slate-600">${App.escapeHtml(ing.fecha_llegada ? ing.fecha_llegada.substring(11, 16) : '')}</td>
+            <td class="px-4 py-3 text-xs font-medium text-slate-800">${App.escapeHtml(ing.tipo_documento)} ${App.escapeHtml(ing.numero_documento)}</td>
+            <td class="px-4 py-3 font-medium text-slate-900">${App.escapeHtml(ing.nombres)} ${App.escapeHtml(ing.apellidos)}</td>
+            <td class="px-4 py-3 text-xs text-slate-600">${App.escapeHtml(ing.eps)}</td>
+            <td class="px-4 py-3 text-xs text-slate-700 max-w-xs truncate" title="${App.escapeHtml(ing.motivo_consulta)}">${App.escapeHtml(ing.motivo_consulta)}</td>
             <td class="px-4 py-3">${estadoBadge}</td>
             <td class="px-4 py-3">${triageBadge}</td>
             <td class="px-4 py-3 text-right">
-              <button onclick="App.verFichaPaciente(${ing.paciente_id})" class="px-2.5 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded">
+              <button onclick="App.verFichaPaciente(${Number(ing.paciente_id)})" class="px-2.5 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded">
                 Ver Detalle
               </button>
             </td>
@@ -198,10 +198,10 @@ const AdmisionesView = {
           return;
         }
         containerResultados.innerHTML = pacientes.map(p => `
-          <div data-id="${p.id}" class="item-paciente-res cursor-pointer p-2.5 rounded border border-slate-200 hover:bg-blue-50 text-xs flex justify-between items-center transition-colors">
+          <div data-id="${Number(p.id)}" class="item-paciente-res cursor-pointer p-2.5 rounded border border-slate-200 hover:bg-blue-50 text-xs flex justify-between items-center transition-colors">
             <div>
-              <strong class="text-slate-800">${p.nombres} ${p.apellidos}</strong> (${p.tipo_documento} ${p.numero_documento})
-              <span class="text-slate-500 block text-[11px]">EPS: ${p.eps}</span>
+              <strong class="text-slate-800">${App.escapeHtml(p.nombres)} ${App.escapeHtml(p.apellidos)}</strong> (${App.escapeHtml(p.tipo_documento)} ${App.escapeHtml(p.numero_documento)})
+              <span class="text-slate-500 block text-[11px]">EPS: ${App.escapeHtml(p.eps)}</span>
             </div>
             <span class="text-blue-600 font-bold">Seleccionar &rarr;</span>
           </div>
@@ -213,7 +213,7 @@ const AdmisionesView = {
             const p = pacientes.find(x => String(x.id) === String(pId));
             hiddenId.value = p.id;
             divSeleccionado.classList.remove('hidden');
-            divSeleccionado.innerHTML = `<strong>Paciente Seleccionado:</strong> ${p.nombres} ${p.apellidos} (${p.tipo_documento} ${p.numero_documento}) - EPS: ${p.eps}`;
+            divSeleccionado.textContent = `Paciente Seleccionado: ${p.nombres} ${p.apellidos} (${p.tipo_documento} ${p.numero_documento}) - EPS: ${p.eps}`;
             containerResultados.innerHTML = '';
           };
         });

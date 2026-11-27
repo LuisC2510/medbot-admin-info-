@@ -16,21 +16,40 @@ const App = {
   },
 
   init() {
+    API.clearLegacyStorage();
+    this.startLiveClock();
     this.bindGlobalEvents();
     this.checkAuth();
   },
 
-  checkAuth() {
-    const token = API.getToken();
-    const user = API.getUser();
+  startLiveClock() {
+    const actualizar = () => {
+      const el = document.getElementById('topbar-live-clock');
+      if (el) {
+        el.textContent = new Date().toLocaleTimeString('es-CO');
+      }
+    };
+    setInterval(actualizar, 1000);
+    actualizar();
+  },
+
+  async checkAuth() {
+    let user = API.getUser();
+    if (!user) {
+      user = await API.fetchCurrentUser();
+    }
 
     const authContainer = document.getElementById('auth-container');
     const appContainer = document.getElementById('app-container');
 
-    if (!token || !user) {
+    if (!user) {
       if (authContainer) authContainer.classList.remove('hidden');
       if (appContainer) appContainer.classList.add('hidden');
       this.renderLoginForm();
+    } else if (user.debe_cambiar_password) {
+      if (authContainer) authContainer.classList.remove('hidden');
+      if (appContainer) appContainer.classList.add('hidden');
+      this.renderChangePasswordForm(user);
     } else {
       if (authContainer) authContainer.classList.add('hidden');
       if (appContainer) appContainer.classList.remove('hidden');
@@ -81,42 +100,17 @@ const App = {
           </div>
 
           <div class="p-5">
-            <!-- ACCESOS RÁPIDOS ARRIBA PARA NO TENER QUE BAJAR -->
-            <div class="mb-4 p-3 bg-blue-50/70 border border-blue-200 rounded-lg">
-              <span class="text-xs font-bold text-blue-900 block mb-2 text-center">
-                👇 Clic para ingresar con cualquier Rol:
-              </span>
-              <div class="grid grid-cols-2 gap-2 text-xs">
-                <button type="button" onclick="App.loginRapido('1001', 'Admin123!')" class="p-2 rounded border border-blue-300 bg-white hover:bg-blue-100 text-blue-900 text-left shadow-xs transition-colors">
-                  <strong class="block">🏢 1. Admisiones</strong>
-                  <span class="text-[10px] text-slate-500 block">Doc: 1001</span>
-                </button>
-                <button type="button" onclick="App.loginRapido('1002', 'Enfermero123!')" class="p-2 rounded border border-amber-300 bg-white hover:bg-amber-100 text-amber-900 text-left shadow-xs transition-colors">
-                  <strong class="block">🩺 2. Enfermero Jefe</strong>
-                  <span class="text-[10px] text-slate-500 block">Doc: 1002</span>
-                </button>
-                <button type="button" onclick="App.loginRapido('1003', 'Medico123!')" class="p-2 rounded border border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-900 text-left shadow-xs transition-colors">
-                  <strong class="block">👨‍⚕️ 3. Médico</strong>
-                  <span class="text-[10px] text-slate-500 block">Doc: 1003</span>
-                </button>
-                <button type="button" onclick="App.loginRapido('1000', 'Admin123!')" class="p-2 rounded border border-purple-300 bg-white hover:bg-purple-100 text-purple-900 text-left shadow-xs transition-colors">
-                  <strong class="block">⚙️ 4. Administrador</strong>
-                  <span class="text-[10px] text-slate-500 block">Doc: 1000</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- O Ingreso Manual con Documento y Contraseña -->
-            <form id="form-login" class="space-y-3 pt-2 border-t border-slate-200">
-              <p class="text-[11px] text-slate-500 text-center font-medium">O escribe tus credenciales manuales:</p>
+            <!-- Ingreso con Documento y Contraseña -->
+            <form id="form-login" class="space-y-3">
+              <p class="text-xs text-slate-500 text-center font-medium">Ingrese sus credenciales institucionales:</p>
               <div>
                 <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Documento</label>
-                <input type="text" id="login-documento" required placeholder="Número de documento..." class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
+                <input type="text" id="login-documento" required autocomplete="username" placeholder="Número de documento..." class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
               </div>
 
               <div>
                 <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Contraseña</label>
-                <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
+                <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
               </div>
 
               <button type="submit" class="w-full py-2 px-4 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors shadow-xs">
@@ -137,11 +131,77 @@ const App = {
     };
   },
 
+  renderChangePasswordForm(user) {
+    const container = document.getElementById('auth-container');
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+          <div class="bg-amber-600 p-4 text-white text-center">
+            <span class="text-2xl block mb-1">🔐</span>
+            <h2 class="text-base font-bold">Cambio de Contraseña Obligatorio</h2>
+            <p class="text-xs text-amber-100">Primer ingreso o restablecimiento requerido (${this.escapeHtml(user.nombre)})</p>
+          </div>
+
+          <div class="p-5">
+            <p class="text-xs text-slate-600 mb-3 bg-amber-50 border border-amber-200 rounded p-2.5">
+              Por seguridad, debe definir una contraseña personal de al menos <strong>10 caracteres</strong> con mayúscula, minúscula, número y símbolo.
+            </p>
+            <form id="form-change-pwd" class="space-y-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Contraseña Actual</label>
+                <input type="password" id="chg-current-pwd" required autocomplete="current-password" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nueva Contraseña</label>
+                <input type="password" id="chg-new-pwd" required minlength="10" autocomplete="new-password" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Confirmar Nueva Contraseña</label>
+                <input type="password" id="chg-confirm-pwd" required minlength="10" autocomplete="new-password" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500">
+              </div>
+              <div class="flex gap-2 pt-2">
+                <button type="button" id="btn-cancel-chg-pwd" class="w-1/3 py-2 px-3 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded">
+                  Salir
+                </button>
+                <button type="submit" class="w-2/3 py-2 px-4 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-xs">
+                  Actualizar Contraseña
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('btn-cancel-chg-pwd').onclick = () => API.logout();
+    document.getElementById('form-change-pwd').onsubmit = async (e) => {
+      e.preventDefault();
+      const currentPassword = document.getElementById('chg-current-pwd').value;
+      const newPassword = document.getElementById('chg-new-pwd').value;
+      const confirmPassword = document.getElementById('chg-confirm-pwd').value;
+      if (newPassword !== confirmPassword) {
+        API.showToast('Las contraseñas nuevas no coinciden.', 'error');
+        return;
+      }
+      try {
+        const res = await API.post('/auth/cambiar-password', { currentPassword, newPassword });
+        if (res.csrfToken) API.setCsrfToken(res.csrfToken);
+        API.setUser(res.user);
+        API.showToast(res.message, 'success');
+        this.checkAuth();
+      } catch (err) {
+        API.showToast(err.message, 'error');
+      }
+    };
+  },
+
   async login(documento, password) {
     try {
       const res = await API.post('/auth/login', { documento, password });
 
-      API.setToken(res.token);
+      if (res.csrfToken) API.setCsrfToken(res.csrfToken);
       API.setUser(res.user);
       API.showToast(`Bienvenido(a), ${res.user.nombre} (${res.user.rol})`, 'success');
       this.checkAuth();
@@ -150,69 +210,8 @@ const App = {
     }
   },
 
-  loginRapido(doc, pass) {
-    API.setToken(null);
-    API.setUser(null);
-    this.login(doc, pass);
-  },
-
   cerrarSesion() {
     API.logout();
-  },
-
-  // MODAL INTERACTIVO PARA CAMBIAR DE ROL DESDE EL HEADER EN CUALQUIER MOMENTO
-  abrirSelectorRoles() {
-    this.abrirModal(`
-      <div class="p-5">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
-          <div>
-            <h3 class="text-base font-bold text-slate-800">Cambiar de Rol / Usuario</h3>
-            <p class="text-xs text-slate-500">Selecciona el rol con el que deseas interactuar:</p>
-          </div>
-          <button onclick="App.cerrarModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-          <button onclick="App.cerrarModal(); App.loginRapido('1001', 'Admin123!')" class="p-3 text-left border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">🏢</span>
-              <strong class="text-xs text-slate-800">1. Administrativo</strong>
-            </div>
-            <p class="text-[11px] text-slate-500 mt-1">Admisiones e ingresos de pacientes</p>
-          </button>
-
-          <button onclick="App.cerrarModal(); App.loginRapido('1002', 'Enfermero123!')" class="p-3 text-left border rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-colors">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">🩺</span>
-              <strong class="text-xs text-slate-800">2. Enfermero Jefe</strong>
-            </div>
-            <p class="text-[11px] text-slate-500 mt-1">Valoración de signos vitales y triage</p>
-          </button>
-
-          <button onclick="App.cerrarModal(); App.loginRapido('1003', 'Medico123!')" class="p-3 text-left border rounded-lg hover:border-emerald-500 hover:bg-emerald-50 transition-colors">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">👨‍⚕️</span>
-              <strong class="text-xs text-slate-800">3. Médico Urgencias</strong>
-            </div>
-            <p class="text-[11px] text-slate-500 mt-1">Tablero en vivo, atención y conductas</p>
-          </button>
-
-          <button onclick="App.cerrarModal(); App.loginRapido('1000', 'Admin123!')" class="p-3 text-left border rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">⚙️</span>
-              <strong class="text-xs text-slate-800">4. Administrador</strong>
-            </div>
-            <p class="text-[11px] text-slate-500 mt-1">Tiempos, contingencia y auditoría</p>
-          </button>
-        </div>
-
-        <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
-          <button onclick="App.cerrarModal()" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">
-            Cerrar
-          </button>
-        </div>
-      </div>
-    `);
   },
 
   setupAuthenticatedLayout(user) {
@@ -466,7 +465,7 @@ const App = {
           <div class="flex items-center justify-between pb-4 border-b border-slate-100">
             <div>
               <h2 class="text-xl font-bold text-slate-800">Historial de Reclasificaciones</h2>
-              <p class="text-xs text-slate-500">Ingreso: <strong>${ing.consecutivo}</strong> • Paciente: ${ing.nombres} ${ing.apellidos}</p>
+              <p class="text-xs text-slate-500">Ingreso: <strong>${this.escapeHtml(ing.consecutivo)}</strong> • Paciente: ${this.escapeHtml(ing.nombres)} ${this.escapeHtml(ing.apellidos)}</p>
             </div>
             <button onclick="App.cerrarModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
           </div>
@@ -477,12 +476,12 @@ const App = {
               <div class="p-3.5 rounded-lg border border-slate-200 bg-slate-50 text-xs space-y-1">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-slate-800">
-                    Cambio: <span class="text-slate-600">${r.nivel_anterior_nombre}</span> &rarr; <span class="text-purple-700 font-extrabold">${r.nivel_nuevo_nombre}</span>
+                    Cambio: <span class="text-slate-600">${this.escapeHtml(r.nivel_anterior_nombre)}</span> &rarr; <span class="text-purple-700 font-extrabold">${this.escapeHtml(r.nivel_nuevo_nombre)}</span>
                   </span>
-                  <span class="text-slate-400">${r.fecha_reclasificacion}</span>
+                  <span class="text-slate-400">${this.escapeHtml(r.fecha_reclasificacion)}</span>
                 </div>
-                <p class="text-slate-700"><strong>Motivo:</strong> ${r.motivo}</p>
-                <span class="text-[11px] text-slate-500 block">Médico: ${r.reclasificado_por_nombre}</span>
+                <p class="text-slate-700"><strong>Motivo:</strong> ${this.escapeHtml(r.motivo)}</p>
+                <span class="text-[11px] text-slate-500 block">Médico: ${this.escapeHtml(r.reclasificado_por_nombre)}</span>
               </div>
             `).join('')}
           </div>
@@ -571,17 +570,17 @@ const App = {
         <div class="p-6 max-w-3xl">
           <div class="flex items-center justify-between pb-4 border-b border-slate-100">
             <div>
-              <h2 class="text-xl font-bold text-slate-800">${p.nombres} ${p.apellidos}</h2>
-              <p class="text-xs text-slate-500">${p.tipo_documento} ${p.numero_documento} • ${edad} años • EPS: ${p.eps}</p>
+              <h2 class="text-xl font-bold text-slate-800">${this.escapeHtml(p.nombres)} ${this.escapeHtml(p.apellidos)}</h2>
+              <p class="text-xs text-slate-500">${this.escapeHtml(p.tipo_documento)} ${this.escapeHtml(p.numero_documento)} • ${edad} años • EPS: ${this.escapeHtml(p.eps)}</p>
             </div>
             <button onclick="App.cerrarModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
           </div>
 
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs">
-            <div><span class="text-slate-400 block font-semibold uppercase">Sexo:</span> <strong class="text-slate-700">${p.sexo}</strong></div>
-            <div><span class="text-slate-400 block font-semibold uppercase">Teléfono:</span> <strong class="text-slate-700">${p.telefono || '--'}</strong></div>
-            <div><span class="text-slate-400 block font-semibold uppercase">Dirección:</span> <strong class="text-slate-700">${p.direccion || '--'}</strong></div>
-            <div><span class="text-slate-400 block font-semibold uppercase">Acudiente:</span> <strong class="text-slate-700">${p.acudiente_nombre || 'Ninguno'}</strong></div>
+            <div><span class="text-slate-400 block font-semibold uppercase">Sexo:</span> <strong class="text-slate-700">${this.escapeHtml(p.sexo)}</strong></div>
+            <div><span class="text-slate-400 block font-semibold uppercase">Teléfono:</span> <strong class="text-slate-700">${this.escapeHtml(p.telefono || '--')}</strong></div>
+            <div><span class="text-slate-400 block font-semibold uppercase">Dirección:</span> <strong class="text-slate-700">${this.escapeHtml(p.direccion || '--')}</strong></div>
+            <div><span class="text-slate-400 block font-semibold uppercase">Acudiente:</span> <strong class="text-slate-700">${this.escapeHtml(p.acudiente_nombre || 'Ninguno')}</strong></div>
           </div>
 
           <h3 class="text-sm font-bold text-slate-800 mb-2">Historial de Ingresos a Urgencias (${ingresos.length})</h3>
@@ -590,14 +589,14 @@ const App = {
             ${ingresos.map(ing => `
               <div class="p-3 rounded-lg border border-slate-200 bg-white text-xs space-y-1">
                 <div class="flex items-center justify-between">
-                  <span class="font-mono font-bold text-slate-800">${ing.consecutivo}</span>
-                  <span class="text-slate-400">${ing.fecha_llegada}</span>
+                  <span class="font-mono font-bold text-slate-800">${this.escapeHtml(ing.consecutivo)}</span>
+                  <span class="text-slate-400">${this.escapeHtml(ing.fecha_llegada)}</span>
                 </div>
-                <p class="text-slate-700"><strong>Motivo:</strong> ${ing.motivo_consulta}</p>
+                <p class="text-slate-700"><strong>Motivo:</strong> ${this.escapeHtml(ing.motivo_consulta)}</p>
                 <div class="flex items-center gap-3 pt-1 text-[11px]">
-                  <span><strong>Estado:</strong> ${ing.estado}</span>
-                  <span><strong>Triage:</strong> ${ing.triage_nombre || 'Sin clasificar'}</span>
-                  ${ing.conducta_tipo ? `<span><strong>Conducta:</strong> ${ing.conducta_tipo}</span>` : ''}
+                  <span><strong>Estado:</strong> ${this.escapeHtml(ing.estado)}</span>
+                  <span><strong>Triage:</strong> ${this.escapeHtml(ing.triage_nombre || 'Sin clasificar')}</span>
+                  ${ing.conducta_tipo ? `<span><strong>Conducta:</strong> ${this.escapeHtml(ing.conducta_tipo)}</span>` : ''}
                 </div>
               </div>
             `).join('')}

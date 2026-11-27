@@ -6,9 +6,21 @@ package-lock.json
 database/*.db
 database/*.db-wal
 database/*.db-shm
+database/*.sqlite
+database/*.sqlite-wal
+database/*.sqlite-shm
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Certificados locales
+certs/
+*.pem
+*.key
+*.crt
 
 # Variables de entorno y secretos
 .env
@@ -21,4 +33,3 @@ npm-debug.log*
 # Sistema operativo
 .DS_Store
 Thumbs.db
-

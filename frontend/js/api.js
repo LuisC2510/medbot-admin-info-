@@ -1,137 +1,203 @@
 // ============================================================
 // ARCHIVO: api.js
-// OBJETIVO: Conectar el frontend (pantalla) con el backend (servidor)
-// Hecho de forma sencilla y directa usando fetch de JavaScript
+// OBJETIVO: Conectar el frontend con el backend usando cookies httpOnly + CSRF
 // ============================================================
 
 const API = {
-  // 1. OBTENER EL TOKEN GUARDADO
-  // Busca en la memoria del navegador si el usuario ya inició sesión
-  getToken() {
-    return localStorage.getItem('medbot_triage_token');
-  },
+  currentUser: null,
+  csrfToken: null,
+  _refreshPromise: null,   // mutex para silent refresh
 
-  // 2. GUARDAR O BORRAR EL TOKEN
-  setToken(token) {
-    if (token) {
-      localStorage.setItem('medbot_triage_token', token);
-    } else {
+  clearLegacyStorage() {
+    try {
       localStorage.removeItem('medbot_triage_token');
+      localStorage.removeItem('medbot_triage_user');
+    } catch (e) {
+      // Ignorar si localStorage no está disponible
     }
   },
 
-  // 3. OBTENER LOS DATOS DEL USUARIO LOGUEADO
+  getCookie(name) {
+    const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : null;
+  },
+
+  getCsrfToken() {
+    return this.getCookie('medbot_csrf') || this.csrfToken;
+  },
+
+  setCsrfToken(token) {
+    this.csrfToken = token || null;
+  },
+
   getUser() {
+    return this.currentUser;
+  },
+
+  setUser(usuario) {
+    this.currentUser = usuario || null;
+  },
+
+  async fetchCurrentUser() {
     try {
-      const usuarioGuardado = localStorage.getItem('medbot_triage_user');
-      if (!usuarioGuardado) return null;
-      return JSON.parse(usuarioGuardado);
-    } catch (error) {
+      const res = await fetch('/api/auth/me', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        this.currentUser = null;
+        return null;
+      }
+      const data = await res.json();
+      this.currentUser = data.user || null;
+      return this.currentUser;
+    } catch (err) {
+      this.currentUser = null;
       return null;
     }
   },
 
-  // 4. GUARDAR LOS DATOS DEL USUARIO
-  setUser(usuario) {
-    if (usuario) {
-      localStorage.setItem('medbot_triage_user', JSON.stringify(usuario));
-    } else {
-      localStorage.removeItem('medbot_triage_user');
+  async logout() {
+    try {
+      const csrf = this.getCsrfToken();
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: csrf ? { 'X-CSRF-Token': csrf } : {}
+      });
+    } catch (err) {
+      // Ignorar errores de red al cerrar sesión
+    } finally {
+      this.currentUser = null;
+      this.csrfToken = null;
+      if (window.RealtimeSync && window.RealtimeSync.socket) {
+        window.RealtimeSync.socket.disconnect();
+      }
+      if (window.App && typeof window.App.checkAuth === 'function') {
+        window.App.checkAuth();
+      } else {
+        window.location.reload();
+      }
     }
   },
 
-  // 5. CERRAR SESIÓN
-  // Limpia el token y muestra de nuevo el login inmediatamente
-  logout() {
-    this.setToken(null);
-    this.setUser(null);
-    if (window.App && typeof window.App.checkAuth === 'function') {
-      window.App.checkAuth();
-    } else {
-      window.location.reload();
-    }
-  },
-
-  // 6. FUNCIÓN GENERAL PARA HACER PETICIONES AL SERVIDOR
-  // Usa "fetch" para enviar o pedir datos a las rutas /api/...
   async request(ruta, opciones = {}) {
-    // Si la ruta no empieza con /, se lo agregamos
     const url = ruta.startsWith('/') ? `/api${ruta}` : `/api/${ruta}`;
+    const method = (opciones.method || 'GET').toUpperCase();
 
-    // Configuramos los encabezados
     const headers = {
       'Content-Type': 'application/json',
       ...opciones.headers
     };
 
-    // Si tenemos token guardado, lo enviamos en la cabecera
-    const token = this.getToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && url !== '/api/auth/login') {
+      const csrf = this.getCsrfToken();
+      if (csrf) {
+        headers['X-CSRF-Token'] = csrf;
+      }
     }
 
     try {
-      // Hacemos la petición HTTP al backend
       const respuesta = await fetch(url, {
         ...opciones,
-        headers: headers
+        method,
+        credentials: 'include',
+        headers
       });
 
-      // Leemos la respuesta como JSON
       const datos = await respuesta.json().catch(() => ({}));
 
-      // Si el servidor nos dice 401 (no autorizado o token vencido)
-      if (respuesta.status === 401) {
+      if (respuesta.status === 401 && url !== '/api/auth/login' && url !== '/api/auth/refresh') {
+        // Intentar renovar el token silenciosamente (un solo intento compartido)
+        const refreshed = await this._silentRefresh();
+        if (refreshed) {
+          // Reintentar la petición original con el token nuevo
+          const headers2 = { 'Content-Type': 'application/json', ...opciones.headers };
+          if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+            const csrf2 = this.getCsrfToken();
+            if (csrf2) headers2['X-CSRF-Token'] = csrf2;
+          }
+          const retry = await fetch(url, { ...opciones, method, credentials: 'include', headers: headers2 });
+          const datos2 = await retry.json().catch(() => ({}));
+          if (!retry.ok) {
+            const err2 = new Error(datos2.error || 'Error en el servidor');
+            err2.code = datos2.code;
+            throw err2;
+          }
+          return datos2;
+        }
+        // Refresh fallido → una sola notificación y redirigir al login
         this.showToast('Tu sesión expiró. Por favor vuelve a ingresar.', 'warning');
-        // Esperamos medio segundo y cerramos sesión
-        setTimeout(() => this.logout(), 600);
+        this.currentUser = null;
+        setTimeout(() => {
+          if (window.App) window.App.checkAuth();
+        }, 800);
         throw new Error('Sesión expirada');
       }
 
-      // Si hubo algún otro error (ej: 400, 404, 500)
       if (!respuesta.ok) {
         const mensajeError = datos.error || 'Ocurrió un error en el servidor';
-        throw new Error(mensajeError);
+        const err = new Error(mensajeError);
+        err.code = datos.code;
+        throw err;
       }
 
-      // Todo salió bien, devolvemos los datos
       return datos;
-
     } catch (error) {
-      console.log('Error en la petición a ' + url + ':', error.message);
       throw error;
     }
   },
 
-  // 7. MÉTODOS CORTOS PARA GET, POST Y PUT
-  // Para consultar información
+  // Renueva el token silenciosamente. Usa un mutex para que múltiples
+  // peticiones 401 simultáneas sólo hagan un único refresh.
+  async _silentRefresh() {
+    if (this._refreshPromise) return this._refreshPromise;
+
+    this._refreshPromise = (async () => {
+      try {
+        const csrf = this.getCsrfToken();
+        const res = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+          headers: csrf ? { 'X-CSRF-Token': csrf } : {}
+        });
+        if (!res.ok) return false;
+        const data = await res.json().catch(() => ({}));
+        if (data.csrfToken) this.setCsrfToken(data.csrfToken);
+        if (data.user) this.currentUser = data.user;
+        return true;
+      } catch {
+        return false;
+      } finally {
+        this._refreshPromise = null;
+      }
+    })();
+
+    return this._refreshPromise;
+  },
+
   get(ruta) {
     return this.request(ruta, { method: 'GET' });
   },
 
-  // Para enviar o crear nueva información
   post(ruta, cuerpo) {
     return this.request(ruta, {
       method: 'POST',
-      body: JSON.stringify(cuerpo)
+      body: JSON.stringify(cuerpo || {})
     });
   },
 
-  // Para editar o actualizar información existente
   put(ruta, cuerpo) {
     return this.request(ruta, {
       method: 'PUT',
-      body: JSON.stringify(cuerpo)
+      body: JSON.stringify(cuerpo || {})
     });
   },
 
-  // 8. MOSTRAR MENSAJES (TOAST) EN LA PANTALLA
-  // Muestra una notificación visual en la esquina inferior
   showToast(mensaje, tipo = 'info') {
     const contenedor = document.getElementById('toast-container');
     if (!contenedor) return;
 
-    // Colores según el tipo de mensaje
     const colores = {
       success: 'bg-emerald-600 text-white',
       error: 'bg-rose-600 text-white',
@@ -139,17 +205,22 @@ const API = {
       info: 'bg-slate-800 text-white'
     };
 
-    // Crear la cajita del mensaje
     const cajita = document.createElement('div');
     cajita.className = `flex items-center justify-between gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${colores[tipo] || colores.info}`;
-    cajita.innerHTML = `
-      <span>${mensaje}</span>
-      <button style="font-weight:bold; cursor:pointer;" onclick="this.parentElement.remove()">&times;</button>
-    `;
 
+    const span = document.createElement('span');
+    span.textContent = String(mensaje);
+
+    const btn = document.createElement('button');
+    btn.style.fontWeight = 'bold';
+    btn.style.cursor = 'pointer';
+    btn.textContent = '×';
+    btn.addEventListener('click', () => cajita.remove());
+
+    cajita.appendChild(span);
+    cajita.appendChild(btn);
     contenedor.appendChild(cajita);
 
-    // Se borra sola a los 4 segundos
     setTimeout(() => {
       if (cajita.parentNode) {
         cajita.remove();

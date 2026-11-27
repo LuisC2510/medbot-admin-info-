@@ -1,42 +1,54 @@
 const http = require('http');
 const assert = require('assert');
-const { app, server } = require('../backend/src/server');
+const { execFileSync } = require('child_process');
+const path = require('path');
 
-const PORT = 3001; // Puerto alternativo para pruebas
+// Reiniciar BD antes de las pruebas funcionales para tener estado determinista
+execFileSync(process.execPath, [path.resolve(__dirname, '../database/reset.js')], { stdio: 'ignore' });
+
+const { server } = require('../backend/src/server');
+
+const PORT = 3001;
 let serverInstance;
 
-function request(method, path, body = null, token = null) {
+function extractCookies(setCookieHeaders = []) {
+  const jar = {};
+  for (const header of setCookieHeaders) {
+    const firstPart = header.split(';')[0];
+    const eqIdx = firstPart.indexOf('=');
+    if (eqIdx > 0) {
+      jar[firstPart.slice(0, eqIdx).trim()] = firstPart.slice(eqIdx + 1).trim();
+    }
+  }
+  return jar;
+}
+
+function request(method, reqPath, body = null, session = null) {
   return new Promise((resolve, reject) => {
     const dataString = body ? JSON.stringify(body) : null;
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    if (dataString) {
-      headers['Content-Length'] = Buffer.byteLength(dataString);
-    }
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    const headers = { 'Content-Type': 'application/json' };
+    if (dataString) headers['Content-Length'] = Buffer.byteLength(dataString);
+
+    if (session) {
+      const cookiePairs = [];
+      if (session.authCookie) cookiePairs.push(`medbot_token=${session.authCookie}`);
+      if (session.csrfCookie) cookiePairs.push(`medbot_csrf=${session.csrfCookie}`);
+      if (cookiePairs.length) headers['Cookie'] = cookiePairs.join('; ');
+      if (session.csrfCookie && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+        headers['X-CSRF-Token'] = session.csrfCookie;
+      }
     }
 
     const req = http.request(
-      {
-        host: '127.0.0.1',
-        port: PORT,
-        path,
-        method,
-        headers
-      },
+      { host: '127.0.0.1', port: PORT, path: reqPath, method, headers },
       (res) => {
         let responseData = '';
-        res.on('data', chunk => { responseData += chunk; });
+        res.on('data', (chunk) => { responseData += chunk; });
         res.on('end', () => {
           let parsed;
-          try {
-            parsed = JSON.parse(responseData);
-          } catch (e) {
-            parsed = responseData;
-          }
-          resolve({ status: res.statusCode, data: parsed });
+          try { parsed = JSON.parse(responseData); } catch (e) { parsed = responseData; }
+          const cookies = extractCookies(res.headers['set-cookie']);
+          resolve({ status: res.statusCode, headers: res.headers, cookies, data: parsed });
         });
       }
     );
@@ -47,6 +59,30 @@ function request(method, path, body = null, token = null) {
   });
 }
 
+async function loginAndActivate(documento, initialPassword) {
+  const resLogin = await request('POST', '/api/auth/login', { documento, password: initialPassword });
+  assert.strictEqual(resLogin.status, 200, `Login de ${documento} debe ser 200`);
+
+  let session = {
+    authCookie: resLogin.cookies.medbot_token,
+    csrfCookie: resLogin.cookies.medbot_csrf
+  };
+
+  if (resLogin.data.mustChangePassword) {
+    const resChg = await request('POST', '/api/auth/cambiar-password', {
+      currentPassword: initialPassword,
+      newPassword: 'ClaveSegura#2026!'
+    }, session);
+    assert.strictEqual(resChg.status, 200, `Cambio de clave inicial de ${documento} debe ser 200`);
+    session = {
+      authCookie: resChg.cookies.medbot_token || session.authCookie,
+      csrfCookie: resChg.cookies.medbot_csrf || session.csrfCookie
+    };
+  }
+
+  return { session, user: resLogin.data.user };
+}
+
 async function runTests() {
   console.log('🧪 Iniciando pruebas automáticas de la API...');
   await new Promise((resolve) => {
@@ -54,44 +90,27 @@ async function runTests() {
   });
 
   try {
-    // 1. Test Login para cada uno de los roles
     console.log('  ▶ Test 1: Autenticación de roles (Admin, Admisión, Enfermero, Médico)');
-    
-    // Admin
-    const resAdmin = await request('POST', '/api/auth/login', { documento: '1000', password: 'Admin123!' });
-    assert.strictEqual(resAdmin.status, 200, 'Admin login debe ser 200');
-    assert.strictEqual(resAdmin.data.user.rol, 'ADMIN');
-    const adminToken = resAdmin.data.token;
+    const { session: adminSession, user: adminUser } = await loginAndActivate('1000', 'Admin123!');
+    assert.strictEqual(adminUser.rol, 'ADMIN');
 
-    // Administrativo
-    const resAdm = await request('POST', '/api/auth/login', { documento: '1001', password: 'Admin123!' });
-    assert.strictEqual(resAdm.status, 200);
-    assert.strictEqual(resAdm.data.user.rol, 'ADMINISTRATIVO');
-    const admToken = resAdm.data.token;
+    const { session: admSession, user: admUser } = await loginAndActivate('1001', 'Admin123!');
+    assert.strictEqual(admUser.rol, 'ADMINISTRATIVO');
 
-    // Enfermero
-    const resEnf = await request('POST', '/api/auth/login', { documento: '1002', password: 'Enfermero123!' });
-    assert.strictEqual(resEnf.status, 200);
-    assert.strictEqual(resEnf.data.user.rol, 'ENFERMERO');
-    const enfToken = resEnf.data.token;
+    const { session: enfSession, user: enfUser } = await loginAndActivate('1002', 'Enfermero123!');
+    assert.strictEqual(enfUser.rol, 'ENFERMERO');
 
-    // Médico
-    const resMed = await request('POST', '/api/auth/login', { documento: '1003', password: 'Medico123!' });
-    assert.strictEqual(resMed.status, 200);
-    assert.strictEqual(resMed.data.user.rol, 'MEDICO');
-    const medToken = resMed.data.token;
-    console.log('    ✅ Autenticación exitosa directa para los 4 roles.');
+    const { session: medSession, user: medUser } = await loginAndActivate('1003', 'Medico123!');
+    assert.strictEqual(medUser.rol, 'MEDICO');
+    console.log('    ✅ Autenticación con cookies httpOnly + CSRF exitosa para los 4 roles.');
 
-    // 2. Test Tablero de urgencias en tiempo real
     console.log('  ▶ Test 2: Consulta del Tablero de Urgencias en Tiempo Real');
-    const resTablero = await request('GET', '/api/ingresos/tablero', null, medToken);
+    const resTablero = await request('GET', '/api/ingresos/tablero', null, medSession);
     assert.strictEqual(resTablero.status, 200);
     assert(Array.isArray(resTablero.data.pacientes), 'Debe devolver un arreglo de pacientes');
-    console.log(`    ✅ Tablero consultado: ${resTablero.data.pacientes.length} pacientes activos.`);
-    // Verificar orden: primer paciente debe ser Triage I
     assert.strictEqual(resTablero.data.pacientes[0].triage_nivel, 1, 'El primer paciente en el tablero debe ser Triage I');
+    console.log(`    ✅ Tablero consultado: ${resTablero.data.pacientes.length} pacientes activos.`);
 
-    // 3. Test Creación de Paciente y Admisión (Administrativo)
     console.log('  ▶ Test 3: Admisión de nuevo paciente');
     const docPrueba = 'DOC_' + Date.now().toString().slice(-8);
     const resPac = await request('POST', '/api/pacientes', {
@@ -104,22 +123,20 @@ async function runTests() {
       telefono: '3119998888',
       direccion: 'Calle 10 # 50-20',
       eps: 'Sura EPS'
-    }, admToken);
+    }, admSession);
     assert.strictEqual(resPac.status, 201);
     const pacienteId = resPac.data.id;
 
-    // Crear ingreso a urgencias
     const resIngreso = await request('POST', '/api/ingresos', {
       paciente_id: pacienteId,
       motivo_consulta: 'Dolor abdominal agudo y vómito persistente.',
       acompanante: 'Andrea Vargas (Hermana)'
-    }, admToken);
+    }, admSession);
     assert.strictEqual(resIngreso.status, 201);
     assert.strictEqual(resIngreso.data.estado, 'EN_ESPERA_TRIAGE');
     const ingresoId = resIngreso.data.id;
-    console.log(`    ✅ Paciente creado (ID: ${pacienteId}) e ingreso admitido (ID: ${ingresoId}, ${resIngreso.data.consecutivo}).`);
+    console.log(`    ✅ Paciente creado (ID: ${pacienteId}) e ingreso admitido (ID: ${ingresoId}).`);
 
-    // 4. Test Valoración de Triage por Enfermería
     console.log('  ▶ Test 4: Valoración y clasificación por Enfermero Jefe');
     const resTriage = await request('POST', '/api/triage', {
       ingreso_id: ingresoId,
@@ -133,59 +150,52 @@ async function runTests() {
       dolor: 6,
       estado_conciencia: 'Alerta',
       observaciones: 'Dolor en fosa ilíaca derecha. Signos vitales estables pero febril.'
-    }, enfToken);
+    }, enfSession);
     assert.strictEqual(resTriage.status, 201);
     assert.strictEqual(resTriage.data.nivel, 3);
     console.log('    ✅ Paciente clasificado en Triage III por enfermería.');
 
-    // 5. Test Reclasificación de Triage por Médico
     console.log('  ▶ Test 5: Reclasificación médica de Triage con justificación');
     const resReclas = await request('POST', `/api/triage/${ingresoId}/reclasificar`, {
       nivel_nuevo: 2,
       motivo: 'Paciente presenta empeoramiento súbito del dolor con signos de irritación peritoneal difusa y taquicardia.'
-    }, medToken);
+    }, medSession);
     assert.strictEqual(resReclas.status, 200);
     assert.strictEqual(resReclas.data.nivel_nuevo, 2);
     console.log('    ✅ Reclasificado a Triage II por médico y registrado en auditoría.');
 
-    // 6. Test Iniciar Atención Médica (Detiene cronómetro)
     console.log('  ▶ Test 6: Iniciar atención médica');
-    const resAtencion = await request('POST', `/api/atencion/${ingresoId}/iniciar`, {}, medToken);
+    const resAtencion = await request('POST', `/api/atencion/${ingresoId}/iniciar`, {}, medSession);
     assert.strictEqual(resAtencion.status, 200);
     assert.strictEqual(resAtencion.data.ingreso.estado, 'EN_ATENCION');
     console.log('    ✅ Atención iniciada y cronómetro detenido.');
 
-    // 7. Test Definir Conducta Médica y Cierre
     console.log('  ▶ Test 7: Definición de conducta médica y cierre del ingreso');
     const resConducta = await request('POST', `/api/atencion/${ingresoId}/conducta`, {
       tipo: 'SOLICITAR_EXAMENES',
       descripcion: 'Se solicita hemograma, PCR, ecografía de abdomen total y valoración prioritaria por cirujano de turno.',
       destino: 'Observación urgencias cubículo 4'
-    }, medToken);
+    }, medSession);
     assert.strictEqual(resConducta.status, 200);
     console.log('    ✅ Conducta médica registrada y caso cerrado.');
 
-    // 8. Test Modificación de tiempos de Triage III (Solo Admin)
     console.log('  ▶ Test 8: Edición de tiempos institucionales de Triage (Admin)');
-    const resConfig = await request('PUT', '/api/configuracion/niveles/3', { minutos_max: 110 }, adminToken);
+    const resConfig = await request('PUT', '/api/configuracion/niveles/3', { minutos_max: 110 }, adminSession);
     assert.strictEqual(resConfig.status, 200);
     assert.strictEqual(resConfig.data.minutos_max, 110);
 
-    // Intento de editar Triage I debe ser rechazado normativamente
-    const resConfigI = await request('PUT', '/api/configuracion/niveles/1', { minutos_max: 10 }, adminToken);
+    const resConfigI = await request('PUT', '/api/configuracion/niveles/1', { minutos_max: 10 }, adminSession);
     assert.strictEqual(resConfigI.status, 400, 'Triage I no debe ser editable por Res. 5596');
     console.log('    ✅ Tiempos editables validados y restricción normativa de Triage I y II respetada.');
 
-    // 9. Test Modo Emergencia
     console.log('  ▶ Test 9: Modo Emergencia / Desastre con múltiples víctimas');
-    const resEmergencia = await request('POST', '/api/configuracion/emergencia', { activo: true }, adminToken);
+    const resEmergencia = await request('POST', '/api/configuracion/emergencia', { activo: true }, adminSession);
     assert.strictEqual(resEmergencia.status, 200);
     assert.strictEqual(resEmergencia.data.modo_emergencia, true);
-    // Desactivar para dejar limpio
-    await request('POST', '/api/configuracion/emergencia', { activo: false }, adminToken);
+    await request('POST', '/api/configuracion/emergencia', { activo: false }, adminSession);
     console.log('    ✅ Modo de emergencia probado y restablecido.');
 
-    console.log('\n🎉 ¡TODAS LAS PRUEBAS DE LA API PASARON EXITOSAMENTE!');
+    console.log('\n🎉 ¡TODAS LAS PRUEBAS FUNCIONALES DE LA API PASARON EXITOSAMENTE!');
   } catch (error) {
     console.error('❌ Error en pruebas:', error);
     process.exitCode = 1;

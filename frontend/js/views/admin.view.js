@@ -291,11 +291,11 @@ const AdminView = {
         return `
           <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-4 py-3 font-mono text-xs text-slate-400">#${u.id}</td>
-            <td class="px-4 py-3 font-bold text-slate-800">${u.nombre}</td>
-            <td class="px-4 py-3 font-mono text-xs text-slate-700">${u.documento}</td>
+            <td class="px-4 py-3 font-bold text-slate-800">${App.escapeHtml(u.nombre)}</td>
+            <td class="px-4 py-3 font-mono text-xs text-slate-700">${App.escapeHtml(u.documento)}</td>
             <td class="px-4 py-3">
               <span class="px-2.5 py-0.5 text-xs font-bold rounded-full ${rolesBadge[u.rol] || 'bg-slate-100 text-slate-700'}">
-                ${u.rol}
+                ${App.escapeHtml(u.rol)}
               </span>
             </td>
             <td class="px-4 py-3">
@@ -347,7 +347,7 @@ const AdminView = {
 
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contraseña *</label>
-            <input type="password" id="usr-password" required placeholder="Mínimo 6 caracteres" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg">
+            <input type="password" id="usr-password" required minlength="10" placeholder="Mín. 10 caracteres (mayús, minús, número y símbolo)" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg">
           </div>
 
           <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
@@ -390,12 +390,12 @@ const AdminView = {
 
       tbody.innerHTML = logs.map(l => `
         <tr class="hover:bg-slate-50 text-[11px]">
-          <td class="px-3 py-2 text-slate-500">${l.fecha ? l.fecha.substring(0, 19) : ''}</td>
-          <td class="px-3 py-2 font-bold text-slate-800">${l.usuario_nombre || 'Sistema'}</td>
-          <td class="px-3 py-2 text-blue-700 font-semibold">${l.accion}</td>
-          <td class="px-3 py-2 text-slate-500">${l.entidad}</td>
-          <td class="px-3 py-2 text-slate-700 truncate max-w-xs" title="${l.detalles}">${l.detalles}</td>
-          <td class="px-3 py-2 text-slate-400">${l.ip || '127.0.0.1'}</td>
+          <td class="px-3 py-2 text-slate-500">${App.escapeHtml(l.fecha ? l.fecha.substring(0, 19) : '')}</td>
+          <td class="px-3 py-2 font-bold text-slate-800">${App.escapeHtml(l.usuario_nombre || 'Sistema')}</td>
+          <td class="px-3 py-2 text-blue-700 font-semibold">${App.escapeHtml(l.accion)}</td>
+          <td class="px-3 py-2 text-slate-500">${App.escapeHtml(l.entidad)}</td>
+          <td class="px-3 py-2 text-slate-700 truncate max-w-xs" title="${App.escapeHtml(l.detalles)}">${App.escapeHtml(l.detalles)}</td>
+          <td class="px-3 py-2 text-slate-400">${App.escapeHtml(l.ip || '127.0.0.1')}</td>
         </tr>
       `).join('');
     } catch (err) {

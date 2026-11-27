@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authenticateToken, requireRole, registrarAuditoria } = require('../middleware/auth');
+const { conductaSchema, validateBody, validateIdParam } = require('../middleware/validate');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -9,9 +10,9 @@ function getIo(req) {
   return req.app.get('io');
 }
 
-// POST /api/atencion/:ingresoId/iniciar (Iniciar atención médica - DETIENE EL CRONÓMETRO)
-router.post('/:ingresoId/iniciar', requireRole('MEDICO', 'ADMIN'), (req, res) => {
-  const ingresoId = req.params.ingresoId;
+// POST /api/atencion/:ingresoId/iniciar (Solo Médico o Admin)
+router.post('/:ingresoId/iniciar', requireRole('MEDICO', 'ADMIN'), validateIdParam('ingresoId'), (req, res) => {
+  const ingresoId = req.validatedParams.ingresoId;
 
   const ingreso = db.prepare('SELECT * FROM ingresos WHERE id = ?').get(ingresoId);
   if (!ingreso) {
@@ -24,14 +25,16 @@ router.post('/:ingresoId/iniciar', requireRole('MEDICO', 'ADMIN'), (req, res) =>
 
   try {
     db.prepare(`
-      UPDATE ingresos 
+      UPDATE ingresos
       SET estado = 'EN_ATENCION',
+          medico_id = ?,
           fecha_inicio_atencion = datetime('now', 'localtime')
       WHERE id = ?
-    `).run(ingresoId);
+    `).run(req.user.id, ingresoId);
 
     const updated = db.prepare(`
-      SELECT i.*, p.nombres, p.apellidos, p.tipo_documento, p.numero_documento,
+      SELECT i.id, i.consecutivo, i.paciente_id, i.estado, i.fecha_llegada, i.fecha_inicio_atencion, i.medico_id,
+             p.nombres, p.apellidos, p.tipo_documento, p.numero_documento,
              t.nivel, nt.nombre as nivel_nombre, nt.codigo_color
       FROM ingresos i
       JOIN pacientes p ON p.id = i.paciente_id
@@ -45,7 +48,7 @@ router.post('/:ingresoId/iniciar', requireRole('MEDICO', 'ADMIN'), (req, res) =>
       'INICIO_ATENCION_MEDICA',
       'INGRESOS',
       ingresoId,
-      `Inicio de atención por médico ${req.user.nombre}. Cronómetro de espera detenido.`,
+      `Inicio de atención por médico ${req.user.nombre}`,
       req
     );
 
@@ -64,33 +67,15 @@ router.post('/:ingresoId/iniciar', requireRole('MEDICO', 'ADMIN'), (req, res) =>
       ingreso: updated
     });
   } catch (err) {
-    res.status(500).json({ error: 'Error al iniciar atención médica: ' + err.message });
+    console.error('Error al iniciar atención médica:', err);
+    res.status(500).json({ error: 'Error interno al iniciar atención médica.' });
   }
 });
 
-// POST /api/atencion/:ingresoId/conducta (Definir conducta médica y cerrar ingreso)
-router.post('/:ingresoId/conducta', requireRole('MEDICO', 'ADMIN'), (req, res) => {
-  const ingresoId = req.params.ingresoId;
-  const { tipo, descripcion, destino } = req.body;
-
-  const tiposPermitidos = [
-    'ATENDER_URGENCIAS',
-    'SOLICITAR_EXAMENES',
-    'HOSPITALIZAR',
-    'REMITIR',
-    'DERIVAR_CONSULTA',
-    'ALTA_MEDICA'
-  ];
-
-  if (!tipo || !tiposPermitidos.includes(tipo)) {
-    return res.status(400).json({
-      error: `Tipo de conducta médica inválido. Permitidos: ${tiposPermitidos.join(', ')}`
-    });
-  }
-
-  if (!descripcion || descripcion.trim().length === 0) {
-    return res.status(400).json({ error: 'La descripción clínica y justificación de la conducta son obligatorias.' });
-  }
+// POST /api/atencion/:ingresoId/conducta (Solo Médico o Admin)
+router.post('/:ingresoId/conducta', requireRole('MEDICO', 'ADMIN'), validateIdParam('ingresoId'), validateBody(conductaSchema), (req, res) => {
+  const ingresoId = req.validatedParams.ingresoId;
+  const { tipo, descripcion, destino } = req.validatedBody;
 
   const ingreso = db.prepare('SELECT * FROM ingresos WHERE id = ?').get(ingresoId);
   if (!ingreso) {
@@ -101,32 +86,39 @@ router.post('/:ingresoId/conducta', requireRole('MEDICO', 'ADMIN'), (req, res) =
     return res.status(400).json({ error: 'Este ingreso ya se encuentra cerrado con conducta médica previa.' });
   }
 
+  if (ingreso.estado === 'EN_ESPERA_TRIAGE') {
+    return res.status(400).json({ error: 'El paciente aún no ha sido valorado en triage.' });
+  }
+
+  // Prevención IDOR: si otro médico inició la atención, solo ese médico o ADMIN puede cerrarla
+  if (ingreso.estado === 'EN_ATENCION' && ingreso.medico_id && ingreso.medico_id !== req.user.id && req.user.rol !== 'ADMIN') {
+    registrarAuditoria(
+      req.user.id,
+      'ACCESO_DENEGADO',
+      'INGRESOS',
+      ingresoId,
+      `Intento IDOR: médico ${req.user.id} intentó definir conducta en ingreso asignado al médico ${ingreso.medico_id}`,
+      req
+    );
+    return res.status(403).json({ error: 'Acceso denegado.' });
+  }
+
   const conductaTx = db.transaction(() => {
-    // Si no se había marcado inicio de atención, se registra ahora
     const fechaInicio = ingreso.fecha_inicio_atencion || db.prepare("SELECT datetime('now', 'localtime') as now").get().now;
 
-    // 1. Insertar la conducta
-    const insertConducta = db.prepare(`
+    db.prepare(`
       INSERT INTO conductas (ingreso_id, tipo, descripcion, destino, medico_id)
       VALUES (?, ?, ?, ?, ?)
-    `);
+    `).run(ingresoId, tipo, descripcion, destino, req.user.id);
 
-    insertConducta.run(
-      ingresoId,
-      tipo,
-      descripcion.trim(),
-      destino ? destino.trim() : null,
-      req.user.id
-    );
-
-    // 2. Cerrar el ingreso
     db.prepare(`
-      UPDATE ingresos 
+      UPDATE ingresos
       SET estado = 'CERRADO',
+          medico_id = COALESCE(medico_id, ?),
           fecha_inicio_atencion = COALESCE(fecha_inicio_atencion, ?),
           fecha_cierre = datetime('now', 'localtime')
       WHERE id = ?
-    `).run(fechaInicio, ingresoId);
+    `).run(req.user.id, fechaInicio, ingresoId);
   });
 
   try {
@@ -147,7 +139,7 @@ router.post('/:ingresoId/conducta', requireRole('MEDICO', 'ADMIN'), (req, res) =
       'DEFINIR_CONDUCTA_MEDICA',
       'CONDUCTAS',
       ingresoId,
-      `Conducta médica: ${tipo} para paciente ${conductaRegistrada.nombres} ${conductaRegistrada.apellidos}. ${descripcion.trim()}`,
+      `Conducta médica: ${tipo} (${conductaRegistrada.consecutivo})`,
       req
     );
 
@@ -164,14 +156,15 @@ router.post('/:ingresoId/conducta', requireRole('MEDICO', 'ADMIN'), (req, res) =
       conducta: conductaRegistrada
     });
   } catch (err) {
-    res.status(500).json({ error: 'Error al definir conducta médica: ' + err.message });
+    console.error('Error al definir conducta médica:', err);
+    res.status(500).json({ error: 'Error interno al definir conducta médica.' });
   }
 });
 
-// GET /api/atencion/mis-pacientes (Pacientes atendidos por el médico actual)
+// GET /api/atencion/mis-pacientes (Solo pacientes asignados al médico actual)
 router.get('/mis-pacientes', requireRole('MEDICO', 'ADMIN'), (req, res) => {
   const pacientes = db.prepare(`
-    SELECT i.*, 
+    SELECT i.id, i.consecutivo, i.paciente_id, i.fecha_llegada, i.estado, i.fecha_inicio_atencion, i.fecha_cierre,
            p.nombres, p.apellidos, p.tipo_documento, p.numero_documento, p.sexo, p.eps,
            t.nivel as triage_nivel, nt.nombre as triage_nombre, nt.codigo_color as triage_color,
            c.tipo as conducta_tipo, c.descripcion as conducta_descripcion, c.destino as conducta_destino, c.fecha_conducta
@@ -180,15 +173,15 @@ router.get('/mis-pacientes', requireRole('MEDICO', 'ADMIN'), (req, res) => {
     LEFT JOIN triage t ON t.ingreso_id = i.id
     LEFT JOIN niveles_triage nt ON nt.nivel = t.nivel
     LEFT JOIN conductas c ON c.ingreso_id = i.id
-    WHERE (c.medico_id = ? OR i.estado = 'EN_ATENCION')
+    WHERE (c.medico_id = ? OR (i.estado = 'EN_ATENCION' AND i.medico_id = ?))
     ORDER BY i.fecha_llegada DESC
-  `).all(req.user.id);
+  `).all(req.user.id, req.user.id);
 
   res.json(pacientes);
 });
 
-// GET /api/atencion/historial (Historial general de atenciones y tiempos de respuesta)
-router.get('/historial', (req, res) => {
+// GET /api/atencion/historial (Solo Médico o Admin)
+router.get('/historial', requireRole('MEDICO', 'ADMIN'), (req, res) => {
   const historial = db.prepare(`
     SELECT i.id, i.consecutivo, i.fecha_llegada, i.fecha_inicio_atencion, i.fecha_cierre, i.estado,
            p.nombres, p.apellidos, p.tipo_documento, p.numero_documento, p.eps,
@@ -197,9 +190,8 @@ router.get('/historial', (req, res) => {
            u_enf.nombre as clasificado_por,
            c.tipo as conducta_tipo, c.descripcion as conducta_descripcion, c.destino as conducta_destino,
            u_med.nombre as atendido_por,
-           -- Tiempo total de espera en minutos desde triage hasta inicio de atención
            CAST(
-             (julianday(COALESCE(i.fecha_inicio_atencion, i.fecha_cierre, 'now', 'localtime')) - 
+             (julianday(COALESCE(i.fecha_inicio_atencion, i.fecha_cierre, 'now', 'localtime')) -
               julianday(t.fecha_clasificacion)) * 24 * 60 AS INTEGER
            ) as minutos_espera_atencion
     FROM ingresos i
@@ -216,4 +208,3 @@ router.get('/historial', (req, res) => {
 });
 
 module.exports = router;
-
